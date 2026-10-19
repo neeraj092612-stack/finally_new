@@ -673,8 +673,35 @@ Review of this document dated 2026-10-04, checked against the completed market d
 | API contracts are specified: request/response shapes, a single error body format, and error codes with status codes. | Section 8 | 15 |
 | Chat actions run in a fixed order (watchlist additions, trades, watchlist removals). Failures are returned per action in the `actions` payload and rendered inline; there is no second LLM call. | Sections 8, 9 | 24, 28 |
 | An LLM failure returns `llm_error` (502); the user message is stored, no actions run. | Sections 8, 9 | 25 |
+| All remaining open questions were resolved by the team lead on 2026-10-19 in `planning/TEAM_CONTRACT.md` §2 and implemented by the agent team. Summary below. | `TEAM_CONTRACT.md` | 6, 8, 11–14, 17–19, 21–23, 26, 27, 29–32 |
 
-### 13.2 Open Questions & Missing Specification
+Summary of the 2026-10-19 decisions (details in `TEAM_CONTRACT.md`):
+
+- **Setup (6, 8, 32):** `.env.example` is committed; start scripts copy it to `.env` with a warning when `.env` is missing. DB init runs in the FastAPI lifespan, before the market source starts and before the startup snapshot. The DB path comes from `DB_PATH`, which defaults to `<repo>/db/finally.db`; Docker uses `/app/db/finally.db`.
+- **Schema location:** schema SQL and seed logic live in the `backend/app/db/` package rather than `backend/db/`, so they are importable and packaged.
+- **Market data (11–14):**
+  - The simulator accepts any well-formed ticker.
+  - Massive mode does not check that a ticker exists, and needs a plan that includes stock snapshots; a free Basic key yields no prices.
+  - The `day_change_percent` baseline is the first price seen since server start.
+  - Chart history lives in the browser only.
+  - Massive prices are static outside market hours.
+- **Portfolio (17–19, 21):**
+  - A full sell deletes the position; a buy uses a weighted-average `avg_cost`; a partial sell leaves `avg_cost` unchanged.
+  - Realized P&L is not shown.
+  - Every trade runs under one `asyncio.Lock` in a single SQLite transaction (cash, position, trade row, snapshot). Watchlist removal takes the same lock.
+  - Reset is `docker volume rm finally-data`.
+- **Chat (22, 23, 26, 27):**
+  - `GET /api/chat` returns the last 50 messages, oldest first.
+  - The LLM sees the last 20 messages.
+  - The mock is a deterministic keyword matcher (buy / sell / add / remove, otherwise a portfolio summary) with `[mock]`-prefixed replies.
+  - Structured output fields are all required; the arrays may be empty.
+- **Frontend (29–31):**
+  - Refetch after trades and chat actions; live values are recomputed client-side from SSE prices.
+  - Connection dot: OPEN = green, CONNECTING = yellow, CLOSED = red.
+  - API routers are registered before the `StaticFiles(html=True)` mount at `/`, served from `STATIC_DIR`.
+- **Extra error codes** in the same body shape: `not_found` (404), `method_not_allowed` (405), `internal_error` (500).
+
+### 13.2 Open Questions & Missing Specification (resolved 2026-10-19, kept for history)
 
 **Setup**
 
@@ -709,10 +736,10 @@ Review of this document dated 2026-10-04, checked against the completed market d
 31. **Static serving.** Specify that API routers are registered before the static mount and that `/` serves `index.html`. As a single page with no client-side routes, no fallback routing is needed.
 32. **Database path.** The path differs between Docker (`/app/db/finally.db`) and local development (`db/finally.db`). Recommend a `DB_PATH` environment variable with a sensible default.
 
-### 13.3 Suggested Order of Resolution
+### 13.3 Status
 
-No blockers remain. Suggested order for what is left:
+All items are resolved and implemented (see 13.1). As of 2026-10-19:
 
-1. Items 11–12 (ticker validation, daily change baseline) — affects the watchlist backend and the `day_change_percent` field.
-2. Items 22, 23, 26, 27 (chat history endpoint, history window, mock responses, schema) — affects the chat UI and E2E tests.
-3. Everything else can be decided by the owning agent, provided the decision is written back into this document.
+- 255 backend unit tests and 48 frontend unit tests pass.
+- The Docker image builds and runs through the start/stop scripts.
+- The Playwright E2E suite (`test/docker-compose.test.yml`) passes 21/21.

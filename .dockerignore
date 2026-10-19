@@ -1,0 +1,47 @@
+# VCS / editor / agent state
+.git
+.github
+.gitignore
+.vscode
+.idea
+.claude
+**/.claude
+
+# Secrets: env is passed at runtime via --env-file
+.env
+.env.*
+
+# Not part of the image
+planning
+independent-reviewer
+scripts
+test
+db
+README.md
+LICENSE
+Dockerfile
+.dockerignore
+
+# Node / Next.js
+**/node_modules
+frontend/.next
+frontend/out
+frontend/coverage
+**/npm-debug.log*
+
+# Python
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/.coverage
+**/htmlcov
+backend/static
+backend/tests
+backend/market_data_demo.py
+**/*.db
+**/*.db-journal
+**/*.db-wal
+**/*.db-shm

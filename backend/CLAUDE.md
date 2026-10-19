@@ -7,6 +7,35 @@ cd backend
 uv sync --extra dev   # Install all dependencies including test/lint tools
 ```
 
+## Running the App
+
+```bash
+uv run uvicorn app.main:app --port 8000
+```
+
+`app/main.py` loads the repo-root `.env` (python-dotenv, existing env vars win) and builds the app via
+`create_app(price_cache=None, market_source=None)` (tests inject a cache and a fake source). The lifespan
+runs `db.init_db()` → starts the market source with the DB watchlist → primes day-change baselines →
+records a startup snapshot, and stores `app.state.price_cache` / `app.state.market_source`.
+Env vars: `OPENROUTER_API_KEY`, `MASSIVE_API_KEY`, `LLM_MOCK`, `DB_PATH` (default `<repo>/db/finally.db`),
+`STATIC_DIR` (default `backend/static`; mounted at `/` last, only if it exists).
+
+## Layout
+
+- `app/errors.py` — `AppError(code, message, status_code)`; every non-2xx response is
+  `{"error": {"code", "message"}}` (handlers in `app/main.py` also cover validation errors → `invalid_request` 422,
+  404 → `not_found`, 405 → `method_not_allowed`, unhandled → `internal_error` 500).
+- `app/services/` — domain logic shared by REST and the LLM chat flow:
+  - `tickers.normalize_ticker` (strip/upper, `^[A-Z][A-Z0-9.]{0,9}$`, else `invalid_ticker`)
+  - `portfolio.build_portfolio` / `record_snapshot` (unpriced positions are valued at avg_cost)
+  - `watchlist.build_watchlist` / `add_ticker` / `remove_ticker`; `day_change_percent` baseline = first price
+    seen since server start (`prime_baselines` at startup)
+  - `trading.execute_trade` — validation order per PLAN §8, `TRADE_LOCK` + one DB transaction
+    (cash, position, trade row, snapshot). Full sell deletes the position; buys use weighted avg cost.
+- `app/api/` — routers: `health`, `portfolio`, `watchlist` (chat router lives in `app/llm/router.py`).
+- `app/db/` — SQLite layer (see `TEAM_CONTRACT.md` §3.1). `app/llm/` — chat.
+- Tests: `tests/services/` (service logic, `fakes.FakeSource`), `tests/api/` (TestClient against `create_app`).
+
 ## Market Data API
 
 The market data subsystem lives in `app/market/`. Use these imports:

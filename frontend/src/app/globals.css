@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0b0f15;
+  --color-panel: #10161f;
+  --color-panel-2: #141c27;
+  --color-line: #1f2937;
+  --color-line-strong: #2b3646;
+  --color-text: #d7dee8;
+  --color-muted: #7d8a9c;
+  --color-faint: #4a5566;
+  --color-accent: #ecad0a;
+  --color-blue: #209dd7;
+  --color-purple: #753991;
+  --color-purple-hi: #8c47ad;
+  --color-up: #22c55e;
+  --color-down: #ef4444;
+
+  --font-sans: "Inter", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Mono", Consolas, Menlo, ui-monospace, monospace;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Panel chrome */
+.panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: 4px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.panel-title {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+/* Price flash: class applied with no transition, then removed so the
+   background fades back over ~500ms. */
+.price-cell {
+  transition: background-color 500ms ease-out, color 500ms ease-out;
+  border-radius: 2px;
+}
+.price-cell.flash-up {
+  background-color: rgba(34, 197, 94, 0.28);
+  color: #86efac;
+  transition: none;
+}
+.price-cell.flash-down {
+  background-color: rgba(239, 68, 68, 0.28);
+  color: #fca5a5;
+  transition: none;
+}
+
+/* Connection dot */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  display: inline-block;
+}
+.status-dot[data-status="connected"] {
+  background: var(--color-up);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.7);
+}
+.status-dot[data-status="reconnecting"] {
+  background: var(--color-accent);
+  box-shadow: 0 0 8px rgba(236, 173, 10, 0.7);
+  animation: pulse-dot 1s ease-in-out infinite;
+}
+.status-dot[data-status="disconnected"] {
+  background: var(--color-down);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.7);
+}
+@keyframes pulse-dot {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.loading-dots span {
+  animation: blink 1.2s infinite both;
+}
+.loading-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.loading-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+@keyframes blink {
+  0%,
+  80%,
+  100% {
+    opacity: 0.2;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+/* Thin scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
