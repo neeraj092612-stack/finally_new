@@ -1,6 +1,7 @@
 "use client";
 
 import { usePriceStream } from "@/lib/priceStore";
+import ChartClient from "./ChartClient";
 import { ChartStrip } from "./ChartStrip";
 import { Panel } from "./Panel";
 
@@ -33,6 +34,9 @@ export function MainChartPanel({ ticker }: MainChartPanelProps) {
     >
       {ticker !== null ? <ChartStrip ticker={ticker} /> : null}
       <div className="relative min-h-0 flex-1">
+        {ticker !== null ? (
+          <ChartClient ticker={ticker} dimmed={snapshot.connection !== "open"} />
+        ) : null}
         {ticker === null ? (
           <div className={OVERLAY}>Select a ticker to see its chart.</div>
         ) : !hasTicks ? (

@@ -7,7 +7,7 @@ const lw = vi.hoisted(() => {
   const series = { setData: vi.fn(), update: vi.fn() };
   const timeScale = { fitContent: vi.fn() };
   const chart = {
-    addSeries: vi.fn(() => series),
+    addSeries: vi.fn((_definition: unknown, _options: unknown) => series),
     timeScale: vi.fn(() => timeScale),
     remove: vi.fn(),
   };
@@ -15,7 +15,7 @@ const lw = vi.hoisted(() => {
     series,
     timeScale,
     chart,
-    createChart: vi.fn(() => chart),
+    createChart: vi.fn((_el: unknown, _options: unknown) => chart),
     AreaSeries: { type: "Area" },
     ColorType: { Solid: "solid" },
     CrosshairMode: { Normal: 0 },
@@ -89,7 +89,7 @@ describe("ChartCanvas creation", () => {
     expect(lw.createChart).toHaveBeenCalledTimes(1);
     expect(lw.createChart.mock.calls[0][1]).toMatchObject({ autoSize: true });
     expect(lw.chart.addSeries).toHaveBeenCalledTimes(1);
-    const [definition, options] = lw.chart.addSeries.mock.calls[0] as unknown as [unknown, Record<string, unknown>];
+    const [definition, options] = lw.chart.addSeries.mock.calls[0];
     expect(definition).toBe(lw.AreaSeries);
     expect(options).toMatchObject({
       lineColor: "#209dd7",

@@ -1,6 +1,8 @@
 "use client";
 
-import ChartCanvas from "./ChartCanvas";
+import dynamic from "next/dynamic";
 
-// RED stub: static import placeholder, the client-only loader arrives in the GREEN commit.
-export default ChartCanvas;
+/** Client-only loader: the static prerender never imports the canvas code. */
+const ChartClient = dynamic(() => import("./ChartCanvas"), { ssr: false });
+
+export default ChartClient;
