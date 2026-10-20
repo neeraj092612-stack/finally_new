@@ -1,3 +1,5 @@
+import { useEffect, useState } from "react";
+import { fetchPortfolio } from "./api";
 import type { Portfolio } from "./types";
 
 export interface PortfolioState {
@@ -5,7 +7,27 @@ export interface PortfolioState {
   data: Portfolio | null;
 }
 
-/** API-surface stub; the fetch-on-mount hook is implemented in the GREEN step. */
+const LOADING: PortfolioState = { status: "loading", data: null };
+
+/** GET /api/portfolio once on mount; the result is ignored if the component unmounts first. */
 export function usePortfolio(): PortfolioState {
-  return { status: "loading", data: null };
+  const [state, setState] = useState<PortfolioState>(LOADING);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchPortfolio().then(
+      (data) => {
+        if (!cancelled) setState({ status: "ready", data });
+      },
+      () => {
+        // The cause is deliberately dropped: the header shows a fixed caption (T-01-29).
+        if (!cancelled) setState({ status: "error", data: null });
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return state;
 }
