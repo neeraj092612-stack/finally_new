@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager, closing
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+from app.api.health import create_health_router
 from app.config import Settings
 from app.db import connect, init_db
 from app.market import PriceCache, create_market_data_source, create_stream_router
@@ -41,6 +42,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.price_cache = cache
     app.state.settings = settings
 
+    app.include_router(create_health_router())
     app.include_router(create_stream_router(cache))
 
     # Mounted last so API routes win over the catch-all static mount (PLAT-07).

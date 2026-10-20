@@ -44,7 +44,7 @@ def _free_port() -> int:
 
 
 def start_server(db_path: Path, static_dir: Path, log_path: Path) -> ServerHandle:
-    """Launch `uvicorn app.main:create_app --factory` and wait until it answers on /."""
+    """Launch `uvicorn app.main:create_app --factory` and wait until /api/health answers."""
     port = _free_port()
     env = os.environ.copy()
     env["DB_PATH"] = str(db_path)
@@ -74,7 +74,7 @@ def start_server(db_path: Path, static_dir: Path, log_path: Path) -> ServerHandl
         if proc.poll() is not None:
             break
         try:
-            with urllib.request.urlopen(f"{handle.base_url}/", timeout=1):
+            with urllib.request.urlopen(f"{handle.base_url}/api/health", timeout=1):
                 return handle
         except OSError:
             time.sleep(0.2)
