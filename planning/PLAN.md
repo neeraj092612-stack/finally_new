@@ -88,7 +88,7 @@ The user runs a single Docker command (or a provided start script) and opens `ht
 finally/
 ├── frontend/                 # Next.js TypeScript project (static export)
 ├── backend/                  # FastAPI uv project (Python)
-│   └── db/                   # Schema definitions, seed data, migration logic
+│   └── app/db/               # Schema definitions, seed data, init logic (part of the `app` package)
 ├── planning/                 # Project-wide documentation for agents
 │   ├── PLAN.md               # This document
 │   └── ...                   # Additional agent reference docs
@@ -109,7 +109,7 @@ finally/
 
 - **`frontend/`** is a self-contained Next.js project. It knows nothing about Python. It talks to the backend via `/api/*` endpoints and `/api/stream/*` SSE endpoints. Internal structure is up to the Frontend Engineer agent.
 - **`backend/`** is a self-contained uv project with its own `pyproject.toml`. It owns all server logic including database initialization, schema, seed data, API routes, SSE streaming, market data, and LLM integration. Internal structure is up to the Backend/Market Data agents.
-- **`backend/db/`** contains schema SQL definitions and seed logic. The backend lazily initializes the database on first request — creating tables and seeding default data if the SQLite file doesn't exist or is empty.
+- **`backend/app/db/`** contains schema SQL definitions and seed logic. It lives inside the `app` package (the wheel package) rather than in a top-level `backend/db/`, so it is importable as `app.db`. The database is initialized in the FastAPI lifespan at startup, before the market data source starts and before the startup portfolio snapshot: tables are created and default data seeded if the SQLite file doesn't exist or is empty. It is not initialized lazily on first request.
 - **`db/`** at the top level is where the SQLite file (`db/finally.db`) lives when the backend runs outside Docker. In Docker, the database lives in the `finally-data` named volume mounted at `/app/db` and persists across container restarts; the repo's `db/` directory is not mounted.
 - **`planning/`** contains project-wide documentation, including this plan. All agents reference files here as the shared contract.
 - **`test/`** contains Playwright E2E tests and supporting infrastructure (e.g., `docker-compose.test.yml`). Unit tests live within `frontend/` and `backend/` respectively, following each framework's conventions.
@@ -129,7 +129,17 @@ MASSIVE_API_KEY=
 
 # Optional: Set to "true" for deterministic mock LLM responses (testing)
 LLM_MOCK=false
+
+# Optional: SQLite file location
+# Default: db/finally.db locally, /app/db/finally.db in Docker (set by the Dockerfile)
+# DB_PATH=
+
+# Optional: directory holding the Next.js static export served at /
+# Default: frontend/out locally, /app/static in Docker (set by the Dockerfile)
+# STATIC_DIR=
 ```
+
+`.env.example` is committed at the repo root; copy it to `.env` and fill in the key. `DB_PATH` and `STATIC_DIR` are optional, normally left unset, and deliberately not listed in `.env.example`: in Docker the Dockerfile sets them, and an empty value in `--env-file` would override that.
 
 ### Behavior
 
@@ -137,6 +147,8 @@ LLM_MOCK=false
 - If `MASSIVE_API_KEY` is absent or empty → backend uses the built-in market simulator
 - If `LLM_MOCK=true` → backend returns deterministic mock LLM responses (for E2E tests)
 - The backend reads `.env` from the project root (mounted into the container or read via docker `--env-file`)
+- If `DB_PATH` is unset or empty the default above applies; likewise for `STATIC_DIR`
+- If `.env` is missing, the start scripts print a warning to stderr and start the container without `--env-file`: the simulator works and chat returns `llm_error` until `OPENROUTER_API_KEY` is set
 
 ---
 
@@ -175,16 +187,17 @@ Both the simulator and the Massive client implement the same abstract interface.
 - Endpoint: `GET /api/stream/prices`
 - Long-lived SSE connection; client uses native `EventSource` API
 - Server pushes price updates for all tickers known to the system at a regular cadence (~500ms) — in the single-user model this is equivalent to the user's watchlist
-- Each SSE event contains ticker, price, previous price, timestamp, and change direction
+- Each SSE event contains ticker, price, previous price, timestamp, and change direction, plus the additive keys `reference_price` and `day_change_percent` (the day-change baseline, see Section 8 `GET /api/watchlist`)
+- `direction`, `change` and `change_percent` are computed from the unrounded price, so `"flat"` means the price truly did not change; serialized prices stay at 2 decimals
 - Client handles reconnection automatically (EventSource has built-in retry)
 
 ---
 
 ## 7. Database
 
-### SQLite with Lazy Initialization
+### SQLite with Startup Initialization
 
-The backend checks for the SQLite database on startup (or first request). If the file doesn't exist or tables are missing, it creates the schema and seeds default data. This means:
+The backend initializes the SQLite database in the FastAPI lifespan at startup (the market data source and the startup portfolio snapshot both need it, so it cannot wait for a first request). If the file doesn't exist or tables are missing, it creates the schema and seeds default data; seeding runs only when the user profile row is first created, so a watchlist row the user deleted is not re-seeded on restart. This means:
 
 - No separate migration step
 - No manual database setup
@@ -309,16 +322,20 @@ Every non-2xx response, including request validation failures, uses one body sha
 | `not_watched` | 404 | Removing a ticker that is not on the watchlist |
 | `position_open` | 409 | Removing a ticker that has an open position |
 | `llm_error` | 502 | LLM call failed, timed out, or returned output that does not match the schema |
+| `not_found` | 404 | Framework-level: an unknown `/api` path |
+| `http_error` | varies | Framework-level: any other HTTP error raised by the framework (for example 405 for a wrong method on a known path) |
+
+Unknown `/api/*` paths return this JSON envelope with `not_found`, never the static site's 404 page. `GET /api/health` stays JSON and `/` stays HTML.
 
 #### `GET /api/stream/prices`
 
 Already implemented. The stream opens with `retry: 1000`, then sends one unnamed event roughly every 500ms whenever any price has changed. Each event carries every tracked ticker, keyed by ticker:
 
 ```
-data: {"AAPL": {"ticker": "AAPL", "price": 191.24, "previous_price": 191.10, "timestamp": 1791100800.12, "change": 0.14, "change_percent": 0.0733, "direction": "up"}, "MSFT": {...}}
+data: {"AAPL": {"ticker": "AAPL", "price": 191.24, "previous_price": 191.10, "timestamp": 1791100800.12, "change": 0.14, "change_percent": 0.0733, "direction": "up", "reference_price": 190.0, "day_change_percent": 0.65}, "MSFT": {...}}
 ```
 
-`change`, `change_percent` and `direction` (`"up"`, `"down"`, `"flat"`) compare against the previous tick, not the start of the day.
+`change`, `change_percent` and `direction` (`"up"`, `"down"`, `"flat"`) compare against the previous tick, not the start of the day. They are computed from the unrounded price, so `"flat"` means the price truly did not change; serialized prices stay at 2 decimals. `reference_price` and `day_change_percent` are additive keys: the day-change baseline and the percentage change of `price` against it, rounded to 2 decimals (both are `null` when no baseline is known; baseline defined under `GET /api/watchlist`).
 
 #### `GET /api/portfolio`
 
@@ -406,7 +423,7 @@ Ordered oldest first. Returns all snapshots.
 }
 ```
 
-Ordered by `added_at`. `price`, `previous_price`, `direction` and `day_change_percent` are `null` while the ticker has no price in the cache. The baseline for `day_change_percent` is still to be defined (Section 13, item 12).
+Ordered by `added_at`. `price`, `previous_price`, `direction` and `day_change_percent` are `null` while the ticker has no price in the cache. `day_change_percent` is measured against a baseline price: in simulator mode the first price seen since server start (the seed price, so it resets on restart); in Massive mode the previous trading day's close (`prev_day.close`).
 
 #### `POST /api/watchlist`
 
@@ -561,6 +578,9 @@ The frontend is a single-page application with a dense, terminal-inspired layout
 - Price flash effect: on receiving a new price, briefly apply a CSS class with background color transition, then remove it
 - All API calls go to the same origin (`/api/*`) — no CORS configuration needed
 - Tailwind CSS for styling with a custom dark theme
+- The connection status dot maps `EventSource.readyState`: `OPEN` = green, `CONNECTING` = yellow, `CLOSED` = red
+- Chart and sparkline history is browser-only, accumulated from the SSE stream since page load; a page refresh empties the main chart and all sparklines
+- In Massive mode outside market hours (evenings, weekends) prices are static, so there is no price flash and sparklines stay flat. This is expected, not a bug
 
 ---
 
@@ -579,36 +599,42 @@ Stage 2: Python 3.12 slim
   - uv sync (install Python dependencies from lockfile)
   - Copy frontend build output into a static/ directory
   - Expose port 8000
-  - CMD: uvicorn serving FastAPI app
+  - CMD: uvicorn app.main:create_app --factory --timeout-graceful-shutdown 2 (single worker)
 ```
 
-FastAPI serves the static frontend files and all API routes on port 8000.
+FastAPI serves the static frontend files and all API routes on port 8000. API routers are registered before the static mount, and `/` serves `index.html`; as a single page with no client-side routes, no fallback routing is needed. The server runs as a single worker on purpose, so one in-memory price cache serves every SSE client. `--timeout-graceful-shutdown 2` lets `docker stop` finish while an SSE connection is open. The Dockerfile sets `DB_PATH=/app/db/finally.db` and `STATIC_DIR=/app/static`.
 
 ### Docker Volume
 
 The SQLite database persists via a named Docker volume:
 
 ```bash
-docker run -v finally-data:/app/db -p 8000:8000 --env-file .env finally
+docker run -v finally-data:/app/db -p 127.0.0.1:8000:8000 --env-file .env finally
 ```
 
-`finally-data` is a Docker-managed named volume mounted at `/app/db`; the backend writes `finally.db` there. The `db/` directory in the project root is not mounted into the container — it is only used when running the backend outside Docker.
+The port is published on the loopback interface only (`-p 127.0.0.1:8000:8000`, a deliberate deviation from a bare `-p 8000:8000`), because the app has no authentication and, from Phase 3, spends the user's OpenRouter key. The URL is still `http://localhost:8000`.
+
+`finally-data` is a Docker-managed named volume mounted at `/app/db`; the backend writes `finally.db` there. The `db/` directory in the project root is not mounted into the container — it is only used when running the backend outside Docker. To reset the portfolio to $10,000, stop the app and run `docker volume rm finally-data`; the next start creates a fresh, seeded database.
 
 ### Start/Stop Scripts
 
 **`scripts/start_mac.sh`** (macOS/Linux):
-- Builds the Docker image if not already built (or if `--build` flag passed)
-- Runs the container with the named volume, port mapping, and `.env` file
-- Prints the URL to access the app
-- Stays thin: `--build` is the only flag
+- Builds the Docker image if not already built (or if `--build` flag passed), before replacing any running container
+- Removes a container of the same name, then runs one container with the named volume, the port mapping `127.0.0.1:PORT:8000`, and the `.env` file (`--env-file .env`) when `.env` exists
+- If `.env` is missing, prints a warning to stderr and starts the container without `--env-file`
+- Waits up to 60 seconds for the health check, then prints the URL to access the app
+- Stays thin: `--build` is the only flag (the PowerShell script also accepts `-Build`)
+- `FINALLY_CONTAINER`, `FINALLY_VOLUME` and `FINALLY_PORT` override the container name, the volume and the host port (defaults `finally-app`, `finally-data`, `8000`); they exist so verification can use a separate test container and volume
 
 **`scripts/stop_mac.sh`** (macOS/Linux):
-- Stops and removes the running container
+- Stops and removes the running container; safe to run when nothing is running
 - Does NOT remove the volume (data persists)
 
 **`scripts/start_windows.ps1`** / **`scripts/stop_windows.ps1`**: PowerShell equivalents for Windows.
 
 All scripts should be idempotent — safe to run multiple times. The scripts are the only supported way to launch the app; there is no root `docker-compose.yml`.
+
+Massive mode uses the full-market snapshot endpoint, which is not available on the free Stocks Basic plan. It needs a paid key; with a free key the poller fails soft (logs the error, keeps polling, no prices arrive) and the app keeps running.
 
 Cloud deployment (Terraform, App Runner, etc.) is out of scope for this build.
 
@@ -673,20 +699,21 @@ Review of this document dated 2026-10-04, checked against the completed market d
 | API contracts are specified: request/response shapes, a single error body format, and error codes with status codes. | Section 8 | 15 |
 | Chat actions run in a fixed order (watchlist additions, trades, watchlist removals). Failures are returned per action in the `actions` payload and rendered inline; there is no second LLM call. | Sections 8, 9 | 24, 28 |
 | An LLM failure returns `llm_error` (502); the user message is stored, no actions run. | Sections 8, 9 | 25 |
+| `.env.example` is committed. When `.env` is missing, the start scripts print a warning to stderr and start the container without `--env-file`. | Sections 5, 11 | 6 |
+| The database package is `backend/app/db/` (inside the `app` package). The database is initialized in the FastAPI lifespan at startup, not lazily on first request. | Sections 4, 7 | 8 |
+| `day_change_percent` baseline: first price seen since server start in simulator mode, previous close (`prev_day.close`) in Massive mode. The SSE stream and `GET /api/watchlist` carry `reference_price` and `day_change_percent`; `direction`, `change` and `change_percent` use the unrounded price. | Sections 6, 8 | 12 |
+| Chart and sparkline history is browser-only; a page refresh empties it. No backend price-history buffer or endpoint. | Section 10 | 13 |
+| In Massive mode outside market hours prices are static (no flash, flat sparklines); this is expected. Massive mode needs a paid key for the full-market snapshot endpoint and fails soft otherwise. | Sections 10, 11 | 14 |
+| The connection dot maps `EventSource.readyState`: OPEN green, CONNECTING yellow, CLOSED red. | Section 10 | 30 |
+| API routers are registered before the static mount, `/` serves `index.html`, and unknown `/api` paths return a JSON `not_found` envelope (framework errors use `http_error`). The container runs `uvicorn app.main:create_app --factory --timeout-graceful-shutdown 2` as a single worker. | Sections 8, 11 | 31 |
+| `DB_PATH` (default `db/finally.db`, `/app/db/finally.db` in Docker) and `STATIC_DIR` (default `frontend/out`, `/app/static` in Docker) configure the database and static paths. | Section 5 | 32 |
+| The start scripts publish `127.0.0.1:PORT:8000` (loopback only, because the app is unauthenticated) and accept `FINALLY_CONTAINER`, `FINALLY_VOLUME` and `FINALLY_PORT` overrides; `--build` stays the only flag. Reset the portfolio with `docker volume rm finally-data` after stopping. | Section 11 | — |
 
 ### 13.2 Open Questions & Missing Specification
-
-**Setup**
-
-6. **`.env.example` is described as committed but does not exist** in the repo. It needs to be created, and the start scripts need defined behavior when `.env` is missing (`docker run --env-file .env` fails outright).
-8. **Database init timing.** Section 4 says "lazily initializes on first request"; Section 7 says "on startup (or first request)". The startup snapshot and the market data source both need the database at startup, so init must happen in the FastAPI lifespan. Say so explicitly.
 
 **Market data and watchlist**
 
 11. **Ticker validation on add.** Format and normalization are now defined in Section 8. What remains: the simulator accepts any well-formed symbol and gives unknown ones (e.g. `ZZZZ`) a random seed price between $50 and $300 — is that acceptable? In Massive mode a non-existent symbol is accepted but never receives a price, so it sits on the watchlist with `null` prices and every trade returns `price_unavailable`; decide whether to detect and reject it.
-12. **"Daily change %" is undefined.** `PriceUpdate` only carries the change against the previous tick. The simulator has no previous close. Define the baseline: seed price / first price seen since server start is the simplest option. For Massive, the previous close is available from the API.
-13. **Main chart history.** Price history exists only in the browser since page load, so a refresh empties the main chart and all sparklines. Is that acceptable? If not, the backend needs a small rolling in-memory buffer per ticker and an endpoint to fetch it.
-14. **Massive mode outside market hours.** Prices will be static on evenings and weekends, so there is no flashing and sparklines stay flat. Worth a note so it is not reported as a bug.
 
 **Portfolio and trading**
 
@@ -705,14 +732,11 @@ Review of this document dated 2026-10-04, checked against the completed market d
 **Frontend and deployment**
 
 29. **Refresh strategy.** After a trade (manual or via chat), how do the header, positions table, heatmap and P&L chart refresh — refetch `/api/portfolio` on each action, on a timer, or both? Live total value presumably comes from client-side recalculation using SSE prices; state that.
-30. **Connection status.** Map explicitly to `EventSource.readyState` (OPEN = green, CONNECTING = yellow, CLOSED = red).
-31. **Static serving.** Specify that API routers are registered before the static mount and that `/` serves `index.html`. As a single page with no client-side routes, no fallback routing is needed.
-32. **Database path.** The path differs between Docker (`/app/db/finally.db`) and local development (`db/finally.db`). Recommend a `DB_PATH` environment variable with a sensible default.
 
 ### 13.3 Suggested Order of Resolution
 
 No blockers remain. Suggested order for what is left:
 
-1. Items 11–12 (ticker validation, daily change baseline) — affects the watchlist backend and the `day_change_percent` field.
+1. Item 11 (ticker validation) — affects the watchlist backend.
 2. Items 22, 23, 26, 27 (chat history endpoint, history window, mock responses, schema) — affects the chat UI and E2E tests.
 3. Everything else can be decided by the owning agent, provided the decision is written back into this document.
