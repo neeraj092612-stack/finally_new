@@ -1,7 +1,20 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/AppShell";
+import { __resetPriceStoreForTests } from "@/lib/priceStore";
+
+beforeEach(() => {
+  __resetPriceStoreForTests();
+  FakeEventSource.reset();
+  // The header fetches /api/portfolio; keep every AppShell test off the network.
+  vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})));
+});
+
+afterEach(() => {
+  __resetPriceStoreForTests();
+  vi.unstubAllGlobals();
+});
 
 function region(name: string): HTMLElement {
   return screen.getByRole("region", { name });
@@ -11,6 +24,34 @@ function region(name: string): HTMLElement {
 function expectText(scope: ReturnType<typeof within>, text: string): void {
   expect(scope.queryAllByText(text).map((el: HTMLElement) => el.textContent)).toContain(text);
 }
+
+describe("AppShell price stream", () => {
+  it("opens exactly one EventSource to /api/stream/prices", () => {
+    render(<AppShell />);
+    expect(FakeEventSource.instances.map((es) => es.url).join(",")).toBe("/api/stream/prices");
+  });
+
+  it("closes the EventSource on unmount", () => {
+    const { unmount } = render(<AppShell />);
+    const [source] = FakeEventSource.instances;
+    unmount();
+    expect(source.readyState).toBe(FakeEventSource.CLOSED);
+  });
+
+  it("drives the header dot from the stream: CONNECTING, LIVE, RECONNECTING, OFFLINE", () => {
+    render(<AppShell />);
+    const [source] = FakeEventSource.instances;
+    const status = () => within(screen.getByRole("banner")).getByRole("status").textContent;
+
+    expect(status()).toContain("CONNECTING");
+    act(() => source.emitOpen());
+    expect(status()).toContain("LIVE");
+    act(() => source.emitError(FakeEventSource.CONNECTING));
+    expect(status()).toContain("RECONNECTING");
+    act(() => source.emitError(FakeEventSource.CLOSED));
+    expect(status()).toContain("OFFLINE");
+  });
+});
 
 describe("AppShell", () => {
   it("shows every panel title", () => {
