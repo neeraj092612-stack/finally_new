@@ -140,6 +140,30 @@ def test_sse_streams_every_seeded_ticker(server: ServerHandle) -> None:
         assert isinstance(update["price"], float)
 
 
+def test_health_returns_ok_json(server: ServerHandle) -> None:
+    with urllib.request.urlopen(f"{server.base_url}/api/health", timeout=5) as resp:
+        assert resp.status == 200
+        assert resp.headers["content-type"].startswith("application/json")
+        assert json.loads(resp.read()) == {"status": "ok"}
+
+
+def test_health_answers_while_sse_client_is_connected(server: ServerHandle) -> None:
+    with urllib.request.urlopen(f"{server.base_url}/api/stream/prices", timeout=5) as sse:
+        assert sse.readline().decode().strip() == "retry: 1000"
+        started = time.monotonic()
+        with urllib.request.urlopen(f"{server.base_url}/api/health", timeout=2) as resp:
+            assert resp.status == 200
+            assert json.loads(resp.read()) == {"status": "ok"}
+        assert time.monotonic() - started < 2.0
+
+
+def test_api_routes_win_over_static_mount(server: ServerHandle) -> None:
+    with urllib.request.urlopen(f"{server.base_url}/api/health", timeout=5) as api:
+        assert api.headers["content-type"].startswith("application/json")
+    with urllib.request.urlopen(f"{server.base_url}/", timeout=5) as page:
+        assert page.headers["content-type"].startswith("text/html")
+
+
 def test_database_is_created_and_seeded(server: ServerHandle, smoke_dir: Path) -> None:
     db_path = smoke_dir / "finally.db"
     assert db_path.exists()
