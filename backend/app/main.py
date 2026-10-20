@@ -10,9 +10,12 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.api.health import create_health_router
+from app.api.portfolio import create_portfolio_router
+from app.api.watchlist import create_watchlist_router
 from app.config import Settings
 from app.db import connect, init_db
 from app.market import PriceCache, create_market_data_source, create_stream_router
+from app.services.portfolio import record_snapshot
 from app.services.watchlist import list_tickers
 
 logger = logging.getLogger(__name__)
@@ -32,6 +35,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             tickers = list_tickers(conn)
         source = create_market_data_source(cache)
         await source.start(tickers)
+        # Snapshot after the source has seeded the cache so held tickers are priced (PLAN section 7).
+        with closing(connect(settings.db_path)) as conn:
+            record_snapshot(conn, cache)
         app.state.market_source = source
         try:
             yield
@@ -43,6 +49,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
 
     app.include_router(create_health_router())
+    app.include_router(create_watchlist_router(settings, cache))
+    app.include_router(create_portfolio_router(settings, cache))
     app.include_router(create_stream_router(cache))
 
     # Mounted last so API routes win over the catch-all static mount (PLAT-07).
