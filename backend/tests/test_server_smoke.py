@@ -21,7 +21,17 @@ from app.db.schema import DEFAULT_TICKERS
 from app.main import create_app
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
-SSE_KEYS = {"ticker", "price", "previous_price", "timestamp", "change", "change_percent", "direction"}
+SSE_KEYS = {
+    "ticker",
+    "price",
+    "previous_price",
+    "timestamp",
+    "change",
+    "change_percent",
+    "direction",
+    "reference_price",
+    "day_change_percent",
+}
 
 
 class ServerHandle:
