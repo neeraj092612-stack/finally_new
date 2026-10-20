@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import socket
 import sqlite3
 import subprocess
@@ -148,6 +149,34 @@ def test_sse_streams_every_seeded_ticker(server: ServerHandle) -> None:
         assert set(update) == SSE_KEYS
         assert update["ticker"] == ticker
         assert isinstance(update["price"], float)
+
+
+def _get_json(url: str) -> dict:
+    with urllib.request.urlopen(url, timeout=5) as resp:
+        assert resp.status == 200
+        assert resp.headers["content-type"].startswith("application/json")
+        return json.loads(resp.read())
+
+
+def test_watchlist_lists_defaults_with_live_prices(server: ServerHandle) -> None:
+    body = _get_json(f"{server.base_url}/api/watchlist")
+    entries = body["watchlist"]
+    assert [entry["ticker"] for entry in entries] == list(DEFAULT_TICKERS)
+    for entry in entries:
+        assert set(entry) == {
+            "ticker",
+            "price",
+            "previous_price",
+            "direction",
+            "day_change_percent",
+            "added_at",
+        }
+        assert isinstance(entry["price"], float)
+        assert round(entry["price"], 2) == entry["price"]
+        assert isinstance(entry["previous_price"], float)
+        assert entry["direction"] in {"up", "down", "flat"}
+        assert isinstance(entry["day_change_percent"], int | float)
+        assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", entry["added_at"])
 
 
 def test_health_returns_ok_json(server: ServerHandle) -> None:
