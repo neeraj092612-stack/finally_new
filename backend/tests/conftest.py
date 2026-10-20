@@ -3,9 +3,7 @@
 import pytest
 
 
-@pytest.fixture
-def event_loop_policy():
-    """Use the default event loop policy for all async tests."""
-    import asyncio
-
-    return asyncio.DefaultEventLoopPolicy()
+@pytest.fixture(autouse=True)
+def _no_massive_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep in-process lifespans on the simulator, whatever the developer's environment holds."""
+    monkeypatch.delenv("MASSIVE_API_KEY", raising=False)
