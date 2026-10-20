@@ -12,6 +12,12 @@ export function Header() {
       <span className="text-heading font-semibold text-text">
         Fin<span className="text-accent">Ally</span>
       </span>
+      <span data-testid="total-value" className="text-muted">
+        —
+      </span>
+      <span data-testid="cash-value" className="text-muted">
+        —
+      </span>
       <div className="ml-auto">
         <ConnectionIndicator connection={connection} hasOpened={hasOpened} />
       </div>
