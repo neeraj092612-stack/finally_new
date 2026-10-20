@@ -5,6 +5,9 @@ import { AppShell } from "@/components/AppShell";
 import { __resetPriceStoreForTests } from "@/lib/priceStore";
 import type { Direction, WatchlistEntry } from "@/lib/types";
 
+// jsdom has no canvas: the real chart is covered by ChartCanvas.test.tsx.
+vi.mock("@/components/ChartClient", () => ({ default: () => null }));
+
 beforeEach(() => {
   __resetPriceStoreForTests();
   FakeEventSource.reset();
@@ -206,6 +209,6 @@ describe("AppShell watchlist selection", () => {
     expect(screen.getByRole("banner")).toBeInTheDocument();
     expectText(within(region("Positions")), "No positions yet");
     expectText(within(region("Heatmap")), "No positions to map");
-    expectText(within(region("Chart")), "Select a ticker to see its chart.");
+    expectText(within(region("Chart")), "Waiting for the first price…");
   });
 });
