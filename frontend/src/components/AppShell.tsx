@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { connectPriceStream, disconnectPriceStream } from "@/lib/priceStore";
+import { Header } from "./Header";
 import { Panel } from "./Panel";
 import { PlaceholderPanel } from "./PlaceholderPanel";
 
@@ -13,14 +15,15 @@ const COLUMN_LABEL =
 export function AppShell() {
   const [chatOpen, setChatOpen] = useState(false);
 
+  // The only place the app opens the price stream; browser globals stay inside the effect.
+  useEffect(() => {
+    connectPriceStream();
+    return disconnectPriceStream;
+  }, []);
+
   return (
     <div className="flex min-h-[720px] flex-col desk:h-screen">
-      {/* Plan 01-08 replaces this static bar with the live Header. */}
-      <header className="flex h-12 shrink-0 items-center border-b border-border bg-surface px-2">
-        <span className="text-heading font-semibold">
-          Fin<span className="text-accent">Ally</span>
-        </span>
-      </header>
+      <Header />
 
       <main className="flex flex-col gap-1 p-1 desk:min-h-0 desk:flex-1 desk:flex-row">
         {/* Left column: WATCHLIST over TRADE */}
