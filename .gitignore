@@ -9,6 +9,9 @@ frontend/.next/
 frontend/out/
 *.tsbuildinfo
 next-env.d.ts
+# Generated agent-rule files from `next dev` (agentRules is also disabled in next.config.ts)
+frontend/AGENTS.md
+frontend/CLAUDE.md
 
 # Python
 __pycache__/
