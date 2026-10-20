@@ -334,3 +334,146 @@ describe("WatchlistPanel live prices", () => {
     expect(within(msft).queryByText("0.00")).not.toBeInTheDocument();
   });
 });
+
+describe("WatchlistRow Day %", () => {
+  function entriesWithDay(): WatchlistEntry[] {
+    const entries = makeEntries();
+    entries[1] = { ...entries[1], day_change_percent: -0.07 };
+    entries[2] = { ...entries[2], day_change_percent: 0 };
+    entries[3] = { ...entries[3], day_change_percent: null };
+    return entries;
+  }
+
+  it("formats the REST value signed with 2 dp and colors it by sign", async () => {
+    stubFetch(entriesWithDay());
+    await renderReady();
+
+    const up = within(row("AAPL")).getByText("+0.65%");
+    expect(up).toHaveClass("text-up");
+    const down = within(row("GOOGL")).getByText("-0.07%");
+    expect(down).toHaveClass("text-down");
+  });
+
+  it("mutes exactly 0.00 and a value that rounds to 0.00", async () => {
+    const entries = entriesWithDay();
+    entries[4] = { ...entries[4], day_change_percent: 0.004 };
+    stubFetch(entries);
+    await renderReady();
+
+    const zero = within(row("MSFT")).getByText("0.00%");
+    expect(zero).toHaveClass("text-muted");
+    expect(zero).not.toHaveClass("text-up");
+    expect(zero).not.toHaveClass("text-down");
+    expect(within(row("TSLA")).getByText("0.00%")).toHaveClass("text-muted");
+  });
+
+  it("shows a muted dash, never 0, when Day % and price are missing", async () => {
+    const entries = makeEntries();
+    entries[5] = {
+      ...entries[5],
+      price: null,
+      previous_price: null,
+      direction: null,
+      day_change_percent: null,
+    };
+    stubFetch(entries);
+    await renderReady();
+
+    const nvda = row("NVDA");
+    const dashes = within(nvda).getAllByText("—");
+    expect(dashes).toHaveLength(2);
+    for (const dash of dashes) expect(dash).toHaveClass("text-muted");
+    expect(nvda.textContent).not.toMatch(/0\.00/);
+  });
+
+  it("replaces the REST value with the SSE day_change_percent once a tick arrives", async () => {
+    stubFetch(entriesWithDay());
+    await renderReady();
+    expect(within(row("AAPL")).getByText("+0.65%")).toBeInTheDocument();
+
+    const es = openStream();
+    send(es, tickPayload("AAPL", 191, 100, "up", 1.5));
+    expect(within(row("AAPL")).getByText("+1.50%")).toHaveClass("text-up");
+    expect(within(row("AAPL")).queryByText("+0.65%")).not.toBeInTheDocument();
+
+    send(es, tickPayload("AAPL", 189, 101, "down", -0.3));
+    expect(within(row("AAPL")).getByText("-0.30%")).toHaveClass("text-down");
+  });
+
+  it("falls back to the REST value when the SSE tick carries no Day %", async () => {
+    stubFetch(entriesWithDay());
+    await renderReady();
+    const es = openStream();
+    send(es, tickPayload("AAPL", 191, 100, "up", null));
+    expect(within(row("AAPL")).getByText("+0.65%")).toBeInTheDocument();
+  });
+});
+
+describe("WatchlistRow sparkline", () => {
+  it("shows a dashed baseline before two ticks and a trend-colored polyline after", async () => {
+    stubFetch();
+    await renderReady();
+    expect(row("AAPL").querySelector("polyline")).toBeNull();
+    expect(row("AAPL").querySelector("line[stroke-dasharray]")).not.toBeNull();
+
+    const es = openStream();
+    send(es, tickPayload("AAPL", 190, 100, "flat"));
+    expect(row("AAPL").querySelector("polyline")).toBeNull();
+
+    send(es, tickPayload("AAPL", 191, 101, "up"));
+    const rising = row("AAPL").querySelector("polyline");
+    expect(rising).not.toBeNull();
+    expect(rising).toHaveClass("stroke-up");
+
+    send(es, tickPayload("AAPL", 189, 102, "down"));
+    expect(row("AAPL").querySelector("polyline")).toHaveClass("stroke-down");
+  });
+
+  it("only draws ticks since page load and leaves other rows on the baseline", async () => {
+    stubFetch();
+    await renderReady();
+    const es = openStream();
+    send(es, tickPayload("AAPL", 190, 100, "flat"));
+    send(es, tickPayload("AAPL", 191, 101, "up"));
+    expect(row("MSFT").querySelector("polyline")).toBeNull();
+    expect(row("AAPL").querySelector("polyline")?.getAttribute("points")).toBe("0,18 80,2");
+  });
+});
+
+describe("WatchlistRow aria-label", () => {
+  it("describes ticker, price and the Day % direction", async () => {
+    stubFetch();
+    await renderReady();
+    expect(
+      screen.getByRole("option", { name: "AAPL, 190.24, up 0.65 percent" }),
+    ).toBeInTheDocument();
+  });
+
+  it("follows the live price and Day %", async () => {
+    stubFetch();
+    await renderReady();
+    const es = openStream();
+    send(es, tickPayload("AAPL", 191, 100, "down", -0.3));
+    expect(
+      screen.getByRole("option", { name: "AAPL, 191.00, down 0.30 percent" }),
+    ).toBeInTheDocument();
+    send(es, tickPayload("AAPL", 191, 101, "flat", 0));
+    expect(
+      screen.getByRole("option", { name: "AAPL, 191.00, unchanged 0.00 percent" }),
+    ).toBeInTheDocument();
+  });
+
+  it("says there is no price yet when the row has none", async () => {
+    const entries = makeEntries();
+    entries[2] = { ...entries[2], price: null, previous_price: null, direction: null };
+    stubFetch(entries);
+    await renderReady();
+    expect(screen.getByRole("option", { name: "MSFT, no price yet" })).toBeInTheDocument();
+  });
+
+  it("omits the percent clause when only the price is known", async () => {
+    stubFetch();
+    await renderReady();
+    expect(screen.getByRole("option", { name: "GOOGL, 101.00" })).toBeInTheDocument();
+  });
+});
