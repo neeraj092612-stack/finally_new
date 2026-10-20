@@ -14,14 +14,14 @@ from .cache import PriceCache
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/stream", tags=["streaming"])
-
 
 def create_stream_router(price_cache: PriceCache) -> APIRouter:
-    """Create the SSE streaming router with a reference to the price cache.
+    """Create the SSE streaming router bound to one price cache.
 
-    This factory pattern lets us inject the PriceCache without globals.
+    The router is built inside the factory so every call returns a fresh object with
+    exactly one route; a shared module-level router would accumulate duplicates (MKT-03).
     """
+    router = APIRouter(prefix="/api/stream", tags=["streaming"])
 
     @router.get("/prices")
     async def stream_prices(request: Request) -> StreamingResponse:
@@ -36,7 +36,7 @@ def create_stream_router(price_cache: PriceCache) -> APIRouter:
         disconnection (EventSource built-in behavior).
         """
         return StreamingResponse(
-            _generate_events(price_cache, request),
+            generate_events(price_cache, request),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -48,15 +48,15 @@ def create_stream_router(price_cache: PriceCache) -> APIRouter:
     return router
 
 
-async def _generate_events(
+async def generate_events(
     price_cache: PriceCache,
     request: Request,
     interval: float = 0.5,
 ) -> AsyncGenerator[str, None]:
     """Async generator that yields SSE-formatted price events.
 
-    Sends all prices every `interval` seconds. Stops when the client
-    disconnects (detected via request.is_disconnected()).
+    Sends all prices every `interval` seconds when the cache version changed. Stops
+    when the client disconnects (detected via request.is_disconnected()).
     """
     # Tell the client to retry after 1 second if the connection drops
     yield "retry: 1000\n\n"
