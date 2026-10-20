@@ -833,3 +833,11 @@ StaticFiles(directory="does-not-exist") -> RuntimeError: Directory 'does-not-exi
 
 **Research date:** 2026-10-20
 **Valid until:** 2026-11-03 (npm ecosystem is moving daily; re-run `npm view` before pinning if planning slips past two weeks)
+
+## Orchestrator-Resolved Open Questions (user decisions, 2026-10-20)
+
+- **OQ-1 (flash trigger):** Adopt the recommendation. Flash and the ▲/▼ marker are driven by the stream's `direction !== "flat"`. They are de-duplicated by `timestamp`, so a ticker resent unchanged does not re-flash.
+- **OQ-2 (Day %):** Adopt the recommendation. Use the SSE `day_change_percent` (an additive key) directly. The displayed result matches the UI-SPEC's client-side derivation.
+- **OQ-3 (Massive plan):** The user has no key and runs the simulator only. Massive mode must fail soft and is proven by unit tests built from real `TickerSnapshot.from_dict` models. The "real Massive prices" half of success criterion 5 is manual-only and needs a paid key.
+- **OQ-4 (port bind):** Bind to localhost only with `-p 127.0.0.1:8000:8000` in both start scripts. This is a recorded deviation from PLAN §11, made because the app is unauthenticated.
+- **OQ-5 (stale Docker artifacts):** Do NOT delete the existing `finally:latest` image or `finally-data` volume. Verification uses `--build` and a separately named test volume and container.

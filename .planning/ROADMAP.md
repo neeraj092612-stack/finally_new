@@ -36,7 +36,15 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The watchlist shows AAPL, GOOGL, MSFT, AMZN, TSLA, NVDA, META, JPM, V and NFLX with prices that update about every 500ms, flash green or red on each move and fade within ~500ms, show a day change %, and draw sparklines that fill in from page load.
   4. Clicking a watchlist ticker shows it in the main chart as price over time since page load.
   5. `GET /api/health` returns `{"status": "ok"}`. The database is created and seeded at `DB_PATH` on first start and survives a container restart. With `MASSIVE_API_KEY` set, the same watchlist shows real Massive prices (day change against the previous close) instead of simulated ones.
-**Plans**: TBD
+**Plans:** 7 plans
+Plans:
+- [ ] 01-01-PLAN.md — Backend walking-skeleton tracer (seeded watchlist, health, SSE and static mount from one uvicorn process) plus D-06 raw-price direction and the MKT-04 pre-start queue
+- [ ] 01-02-PLAN.md — Dependency checkpoint, Next.js static-export scaffold and the full terminal grid with empty states
+- [ ] 01-03-PLAN.md — Shared SSE price store, connection indicator and live header (cash, total value)
+- [ ] 01-04-PLAN.md — Portfolio endpoint and startup snapshot, JSON error envelope, DB/config edge tests, Massive parsing fix
+- [ ] 01-05-PLAN.md — Watchlist panel: flashing prices, markers, Day %, sparklines, selection, keyboard navigation and states
+- [ ] 01-06-PLAN.md — Dockerfile, .env.example, start/stop scripts and the PLAN.md write-back
+- [ ] 01-07-PLAN.md — Main chart (Lightweight Charts area series) and the final rebuild through the start script
 **UI hint**: yes
 
 ### Phase 2: Manual Trading & Portfolio
@@ -74,6 +82,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Live Market Terminal | 0/TBD | Not started | - |
+| 1. Live Market Terminal | 0/7 | Planned | - |
 | 2. Manual Trading & Portfolio | 0/TBD | Not started | - |
 | 3. AI Trading Copilot | 0/TBD | Not started | - |
