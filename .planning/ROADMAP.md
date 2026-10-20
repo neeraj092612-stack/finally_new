@@ -38,7 +38,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Clicking a watchlist ticker shows it in the main chart as price over time since page load.
   5. `GET /api/health` returns `{"status": "ok"}`. The database is created and seeded at `DB_PATH` on first start and survives a container restart. With `MASSIVE_API_KEY` set, the same watchlist shows real Massive prices (day change against the previous close) instead of simulated ones.
 
-**Plans:** 11/14 plans executed (5 waves)
+**Plans:** 13/14 plans executed (5 waves)
 Plans:
 **Wave 1**
 - [x] 01-01-PLAN.md — Backend walking-skeleton tracer: one uvicorn process seeds SQLite, streams the seeded tickers over SSE, serves the static mount and /api/health (wave 1)
@@ -58,8 +58,8 @@ Plans:
 - [x] 01-11-PLAN.md — .env.example, .dockerignore and the multi-stage Dockerfile verified on a test container (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 01-12-PLAN.md — Watchlist in the page: AAPL selected on load, click and keyboard selection drive the chart title (wave 4)
-- [ ] 01-13-PLAN.md — Start/stop scripts (bash and PowerShell) and the PLAN.md write-back (wave 4)
+- [x] 01-12-PLAN.md — Watchlist in the page: AAPL selected on load, click and keyboard selection drive the chart title (wave 4)
+- [x] 01-13-PLAN.md — Start/stop scripts (bash and PowerShell) and the PLAN.md write-back (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 01-14-PLAN.md — Main chart (Lightweight Charts area series) and the final rebuild through the start script (wave 5)
@@ -105,6 +105,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Live Market Terminal | 11/14 | In Progress | - |
+| 1. Live Market Terminal | 13/14 | In Progress | - |
 | 2. Manual Trading & Portfolio | 0/TBD | Not started | - |
 | 3. AI Trading Copilot | 0/TBD | Not started | - |
