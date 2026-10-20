@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { connectPriceStream, disconnectPriceStream } from "@/lib/priceStore";
+import { useWatchlist } from "@/lib/useWatchlist";
 import { Header } from "./Header";
 import { Panel } from "./Panel";
 import { PlaceholderPanel } from "./PlaceholderPanel";
-
-const SKELETON_ROWS = Array.from({ length: 10 }, (_, i) => i);
+import { WatchlistPanel } from "./WatchlistPanel";
 
 const COLUMN_LABEL =
   "text-label font-semibold uppercase tracking-[0.06em] text-muted";
@@ -14,12 +14,25 @@ const COLUMN_LABEL =
 /** Terminal grid (D-01) with tablet stacking (D-04). Later plans fill the panels in place. */
 export function AppShell() {
   const [chatOpen, setChatOpen] = useState(false);
+  const watchlist = useWatchlist();
+  // AppShell owns the selected ticker (D-15): never persisted, AAPL (first entry) on load.
+  const [selected, setSelected] = useState<string | null>(null);
 
   // The only place the app opens the price stream; browser globals stay inside the effect.
   useEffect(() => {
     connectPriceStream();
     return disconnectPriceStream;
   }, []);
+
+  const { status, entries } = watchlist;
+  useEffect(() => {
+    if (status !== "ready") return;
+    setSelected((current) =>
+      current !== null && entries.some((entry) => entry.ticker === current)
+        ? current
+        : (entries[0]?.ticker ?? null),
+    );
+  }, [status, entries]);
 
   return (
     <div className="flex min-h-[720px] flex-col desk:h-screen">
@@ -28,32 +41,12 @@ export function AppShell() {
       <main className="flex flex-col gap-1 p-1 desk:min-h-0 desk:flex-1 desk:flex-row">
         {/* Left column: WATCHLIST over TRADE */}
         <div className="contents desk:flex desk:w-[352px] desk:shrink-0 desk:flex-col desk:gap-1">
-          <Panel
-            title="WATCHLIST"
-            ariaLabel="Watchlist"
+          <WatchlistPanel
+            {...watchlist}
+            selected={selected}
+            onSelect={setSelected}
             className="order-2 desk:order-none desk:min-h-[332px] desk:flex-1"
-          >
-            <div className={`flex h-6 items-center gap-2 bg-surface px-2 ${COLUMN_LABEL}`}>
-              <span className="w-16">TICKER</span>
-              <span className="flex-1">TREND</span>
-              <span className="w-[88px] text-right">PRICE</span>
-              <span className="w-[72px] text-right">DAY %</span>
-            </div>
-            <div>
-              {SKELETON_ROWS.map((i) => (
-                <div
-                  key={i}
-                  data-testid="skeleton-row"
-                  className="flex h-7 items-center gap-2 px-2"
-                >
-                  <div className="skeleton-pulse h-3 w-16 bg-surface-2" />
-                  <div className="skeleton-pulse h-3 flex-1 bg-surface-2" />
-                  <div className="skeleton-pulse h-3 w-[88px] bg-surface-2" />
-                  <div className="skeleton-pulse h-3 w-[72px] bg-surface-2" />
-                </div>
-              ))}
-            </div>
-          </Panel>
+          />
           <PlaceholderPanel
             title="TRADE"
             ariaLabel="Trade"
@@ -66,7 +59,15 @@ export function AppShell() {
         {/* Center column: CHART over HEATMAP | P&L over POSITIONS */}
         <div className="contents desk:flex desk:min-w-[528px] desk:flex-1 desk:flex-col desk:gap-1">
           <Panel
-            title="CHART"
+            title={
+              selected === null ? (
+                "CHART"
+              ) : (
+                <>
+                  CHART · <span className="text-accent">{selected}</span>
+                </>
+              )
+            }
             ariaLabel="Chart"
             className="order-3 h-80 shrink-0 desk:order-none desk:h-auto desk:min-h-[280px] desk:flex-1"
             bodyClassName="relative"
