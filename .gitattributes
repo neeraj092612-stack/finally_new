@@ -1,5 +1,0 @@
-# Shell scripts and Docker files must keep LF endings even on Windows checkouts (core.autocrlf).
-*.sh text eol=lf
-Dockerfile text eol=lf
-.dockerignore text eol=lf
-.env.example text eol=lf
