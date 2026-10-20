@@ -75,3 +75,63 @@ class TestPriceUpdate:
 
         with pytest.raises(AttributeError):
             update.price = 200.00  # Should raise error
+
+
+class TestPriceUpdateExtensions:
+    """D-06 raw-price direction and D-18 day-change fields."""
+
+    def test_defaults_keep_old_behavior(self):
+        """Without raw or reference fields, behavior is computed from price fields."""
+        update = PriceUpdate(ticker="AAPL", price=191.0, previous_price=190.0, timestamp=1.0)
+        assert update.reference_price is None
+        assert update.day_change_percent is None
+        assert update.direction == "up"
+
+    def test_direction_uses_raw_prices_when_present(self):
+        """Equal display prices but a raw uptick report 'up'."""
+        update = PriceUpdate(
+            ticker="X", price=190.0, previous_price=190.0, timestamp=1.0,
+            raw_price=190.003, raw_previous_price=190.001,
+        )
+        assert update.direction == "up"
+        assert update.change > 0
+        assert update.change_percent > 0
+
+    def test_direction_flat_when_raw_equal(self):
+        """Equal raw prices are flat."""
+        update = PriceUpdate(
+            ticker="X", price=190.0, previous_price=190.0, timestamp=1.0,
+            raw_price=190.003, raw_previous_price=190.003,
+        )
+        assert update.direction == "flat"
+        assert update.change == 0.0
+
+    def test_day_change_percent(self):
+        """190.00 -> 191.24 against a 190.00 reference is 0.65 percent."""
+        update = PriceUpdate(
+            ticker="X", price=191.24, previous_price=191.0, timestamp=1.0, reference_price=190.0
+        )
+        assert update.day_change_percent == 0.65
+
+    def test_day_change_percent_none_for_zero_reference(self):
+        """A zero reference yields None."""
+        update = PriceUpdate(
+            ticker="X", price=191.24, previous_price=191.0, timestamp=1.0, reference_price=0.0
+        )
+        assert update.day_change_percent is None
+
+    def test_to_dict_has_exactly_nine_keys(self):
+        """to_dict carries the 7 original keys plus the two additive ones, never raw fields."""
+        update = PriceUpdate(
+            ticker="X", price=190.0, previous_price=190.0, timestamp=1.0,
+            raw_price=190.003, raw_previous_price=190.001, reference_price=189.0,
+        )
+        result = update.to_dict()
+        assert set(result) == {
+            "ticker", "price", "previous_price", "timestamp", "change",
+            "change_percent", "direction", "reference_price", "day_change_percent",
+        }
+        assert result["reference_price"] == 189.0
+        assert result["day_change_percent"] == round((190.0 - 189.0) / 189.0 * 100, 2)
+        assert "raw_price" not in result
+        assert "raw_previous_price" not in result

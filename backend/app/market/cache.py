@@ -20,22 +20,45 @@ class PriceCache:
         self._lock = Lock()
         self._version: int = 0  # Monotonically increasing; bumped on every update
 
-    def update(self, ticker: str, price: float, timestamp: float | None = None) -> PriceUpdate:
+    def update(
+        self,
+        ticker: str,
+        price: float,
+        timestamp: float | None = None,
+        reference_price: float | None = None,
+    ) -> PriceUpdate:
         """Record a new price for a ticker. Returns the created PriceUpdate.
 
-        Automatically computes direction and change from the previous price.
-        If this is the first update for the ticker, previous_price == price (direction='flat').
+        Automatically computes direction and change from the previous raw price, so a
+        sub-cent move still reports up/down. If this is the first update for the ticker,
+        previous_price == price (direction='flat').
+
+        The day-change baseline is `reference_price` when given, else carried from the
+        previous update, else this ticker's first price (D-18).
         """
         with self._lock:
-            ts = timestamp or time.time()
+            ts = time.time() if timestamp is None else timestamp
             prev = self._prices.get(ticker)
-            previous_price = prev.price if prev else price
+            if prev is None:
+                prev_raw = price
+            else:
+                prev_raw = prev.raw_price if prev.raw_price is not None else prev.price
+
+            if reference_price is not None:
+                reference = reference_price
+            elif prev is not None:
+                reference = prev.reference_price
+            else:
+                reference = price
 
             update = PriceUpdate(
                 ticker=ticker,
                 price=round(price, 2),
-                previous_price=round(previous_price, 2),
+                previous_price=round(prev_raw, 2),
                 timestamp=ts,
+                reference_price=None if reference is None else round(reference, 2),
+                raw_price=price,
+                raw_previous_price=prev_raw,
             )
             self._prices[ticker] = update
             self._version += 1
@@ -59,12 +82,14 @@ class PriceCache:
     def remove(self, ticker: str) -> None:
         """Remove a ticker from the cache (e.g., when removed from watchlist)."""
         with self._lock:
-            self._prices.pop(ticker, None)
+            if self._prices.pop(ticker, None) is not None:
+                self._version += 1
 
     @property
     def version(self) -> int:
         """Current version counter. Useful for SSE change detection."""
-        return self._version
+        with self._lock:
+            return self._version
 
     def __len__(self) -> int:
         with self._lock:

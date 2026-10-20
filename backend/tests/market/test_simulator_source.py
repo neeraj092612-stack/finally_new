@@ -136,3 +136,67 @@ class TestSimulatorDataSource:
         # Just verify it starts and stops cleanly
         await asyncio.sleep(0.2)
         await source.stop()
+
+
+@pytest.mark.asyncio
+class TestPreStartTickers:
+    """MKT-04: tickers added before start() are queued and priced at start."""
+
+    async def test_add_before_start_is_priced_after_start(self):
+        """A ticker queued before start() appears in the cache alongside the start tickers."""
+        cache = PriceCache()
+        source = SimulatorDataSource(price_cache=cache, update_interval=0.1)
+        await source.add_ticker("PYPL")
+        await source.start(["AAPL"])
+
+        assert cache.get("PYPL") is not None
+        assert cache.get("AAPL") is not None
+        assert set(source.get_tickers()) == {"AAPL", "PYPL"}
+
+        await source.stop()
+
+    async def test_get_tickers_before_start_lists_pending(self):
+        """get_tickers() before start reports the queued tickers, de-duplicated."""
+        cache = PriceCache()
+        source = SimulatorDataSource(price_cache=cache, update_interval=0.1)
+        await source.add_ticker("PYPL")
+        await source.add_ticker("PYPL")
+
+        assert source.get_tickers() == ["PYPL"]
+
+    async def test_remove_before_start_drops_pending(self):
+        """Removing a queued ticker before start() means it is never priced."""
+        cache = PriceCache()
+        source = SimulatorDataSource(price_cache=cache, update_interval=0.1)
+        await source.add_ticker("PYPL")
+        await source.remove_ticker("PYPL")
+        await source.start(["AAPL"])
+
+        assert cache.get("PYPL") is None
+        assert source.get_tickers() == ["AAPL"]
+
+        await source.stop()
+
+    async def test_start_deduplicates_pending_and_start_tickers(self):
+        """A ticker both queued and passed to start() is simulated once, in order."""
+        cache = PriceCache()
+        source = SimulatorDataSource(price_cache=cache, update_interval=0.1)
+        await source.add_ticker("AAPL")
+        await source.add_ticker("PYPL")
+        await source.start(["AAPL", "GOOGL"])
+
+        assert source.get_tickers() == ["AAPL", "GOOGL", "PYPL"]
+
+        await source.stop()
+
+    async def test_readd_after_start_is_noop(self):
+        """Re-adding an already simulated ticker does not write a spurious tick."""
+        cache = PriceCache()
+        source = SimulatorDataSource(price_cache=cache, update_interval=10.0)
+        await source.start(["AAPL"])
+
+        version = cache.version
+        await source.add_ticker("AAPL")
+        assert cache.version == version
+
+        await source.stop()
