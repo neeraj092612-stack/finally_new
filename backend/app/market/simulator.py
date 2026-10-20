@@ -113,7 +113,9 @@ class GBMSimulator:
                     "up" if shock_sign > 0 else "down",
                 )
 
-            result[ticker] = round(self._prices[ticker], 2)
+            # Unrounded on purpose: the cache rounds for display but keeps the raw value
+            # so sub-cent moves still register as up/down (D-06)
+            result[ticker] = self._prices[ticker]
 
         return result
 
