@@ -1,7 +1,8 @@
 ---
 phase: "1"
 slug: live-market-terminal
-status: draft
+status: approved
+reviewed_at: "2026-10-20"
 shadcn_initialized: false
 preset: none
 created: "2026-10-20"
@@ -76,7 +77,7 @@ Exactly 4 sizes and 2 weights (400 regular, 600 semibold).
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
 | Body (rows, table cells, empty-state body, chart strip secondary values) | 12px | 400 | 1.5 |
-| Label (panel titles, column headers, header field captions, connection label; uppercase, letter-spacing 0.06em) | 11px | 600 | 1.5 |
+| Label (panel titles, column headers, header field captions, connection label; uppercase, letter-spacing 0.06em) | 10px | 600 | 1.5 |
 | Heading (watchlist ticker symbols, chart strip ticker, empty-state heading, header cash value) | 14px | 600 | 1.2 |
 | Display (header total value, chart strip live price) | 20px | 600 | 1.2 |
 
@@ -123,6 +124,8 @@ Semantic color is never the only signal: direction is also carried by the ▲/�
 ---
 
 ## Layout and Panels (D-01..D-04)
+
+Visual hierarchy: the main chart is the primary focal point (largest panel, center column, live price at Display size). The header total value is the secondary anchor. The watchlist is the primary interaction surface.
 
 Desktop (viewport width >= 1200px): `100vh` app, no page scroll, 4px outer padding and 4px gap between panels. Panels scroll internally. Minimum supported height 720px (below that the page scrolls).
 
@@ -197,7 +200,7 @@ Chart strip (40px, `bg`, below title bar), left to right: ticker symbol (Heading
 
 Chart (Lightweight Charts v5, canvas; one chart instance created once in a client-only component, destroyed with `chart.remove()` on unmount; `next/dynamic(..., { ssr: false })` and `'use client'`; `autoSize: true`):
 - Series: `chart.addSeries(AreaSeries, {...})` with `lineColor: '#209dd7'`, `lineWidth: 2`, `topColor: 'rgba(32,157,215,0.28)'`, `bottomColor: 'rgba(32,157,215,0)'`, `lastValueVisible: true`, `priceLineVisible: true`, `priceLineColor: '#209dd7'`, `priceFormat: { type: 'price', precision: 2, minMove: 0.01 }`.
-- Layout: `background: transparent` (shows `bg`), `textColor: '#8b949e'`, `fontSize: 11`, `fontFamily` the mono stack; grid lines `#21262d` both axes; both axis borders `#30363d`.
+- Layout: `background: transparent` (shows `bg`), `textColor: '#8b949e'`, `fontSize: 10`, `fontFamily` the mono stack; grid lines `#21262d` both axes; both axis borders `#30363d`.
 - Crosshair (D-16): `CrosshairMode.Normal`, lines `#484f58` dashed, price label on the right scale and time label on the bottom axis.
 - Time scale (D-17): `timeVisible: true`, `secondsVisible: true`, `rightOffset: 4`; scroll and zoom enabled (library defaults); `fitContent()` is called when the selected ticker changes. No programmatic re-fit on every tick, so a user who has scrolled or zoomed is not yanked back.
 - Data: the app keeps a per-ticker tick buffer for all watched tickers from page load (not just the selected one), safety cap 50,000 points per ticker **(default)**. Chart time = `Math.floor(tick.timestamp)` (SSE `timestamp` is Unix seconds float; UTCTimestamp must be integer seconds and strictly ascending). Use `series.setData(buffer)` on ticker switch and `series.update(point)` per tick; two ticks in the same second collapse to the latest value (library replaces when time equals last). Ignore ticks with a time earlier than the last charted time.
@@ -266,16 +269,17 @@ One shared price store (single `EventSource` for the whole app) feeds header, wa
 
 | Element | Copy |
 |---------|------|
-| Primary CTA | None in Phase 1 (read-only page). The only controls are ticker row selection and the Retry button; the first real CTAs (`Buy`, `Sell`, `Send`) arrive in Phases 2-3 |
+| Primary CTA | None in Phase 1 (read-only page). The only controls are ticker row selection and the `Retry watchlist` button; the first real CTAs (`Buy`, `Sell`, `Send`) arrive in Phases 2-3 |
 | Watchlist empty state heading | `No tickers watched` |
 | Watchlist empty state body | `Tickers you add will stream here.` |
 | Watchlist error heading | `Couldn't load the watchlist` |
 | Watchlist error body | `Check that the FinAlly server is running, then retry.` |
-| Watchlist error action | `Retry` (re-runs `GET /api/watchlist`) |
+| Watchlist error action | `Retry watchlist` (re-runs `GET /api/watchlist`) |
 | Chart waiting overlay | `Waiting for the first price…` |
 | Chart no-selection overlay | `Select a ticker to see its chart.` |
 | Chart/watchlist missing value | `—` |
-| Header value unavailable | `—` with `title`: `Portfolio unavailable. Reload to retry.` |
+| Header value loading | `—` in `muted` until the first `GET /api/portfolio` resolves |
+| Header value unavailable | `—` plus a visible Label-style caption in `down` color: `Portfolio unavailable. Reload to retry.` (also set as `title`) |
 | Positions empty heading | `No positions yet` |
 | Positions empty body | `Positions appear here once you buy shares.` |
 | Heatmap empty heading | `No positions to map` |
@@ -315,13 +319,13 @@ Custom components the executor should build (names are guidance; file layout is 
 
 ## UI Considerations
 
-Applicable state considerations resolved: 14 covered, 2 backstop, 1 unresolved.
+Applicable state considerations resolved: 18 covered, 2 backstop, 1 dismissed, 0 unresolved.
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
 | empty | watchlist list-collection | ✅ covered | Zero tickers renders the documented `No tickers watched` empty state (copy in Copywriting Contract) |
 | loading | watchlist list-collection | ✅ covered | While the first watchlist fetch is in flight, 10 skeleton rows render; the layout height does not change when rows arrive |
-| error | watchlist list-collection | ✅ covered | A failed watchlist fetch renders the documented error heading, body and a `Retry` action |
+| error | watchlist list-collection | ✅ covered | A failed watchlist fetch renders the documented error heading, body and a `Retry watchlist` action |
 | partial | watchlist rows with null price | ✅ covered | Rows without a price show `—` for Price and Day % and an empty sparkline baseline, never `0` |
 | zero-one-many | watchlist list-collection | ✅ covered | Zero shows the empty state; one or ten rows use the same 28px row layout with no plural copy |
 | overflow | watchlist list-collection | ✅ covered | More rows than fit make the list body scroll inside the panel; the title bar and column header stay fixed |
@@ -329,13 +333,16 @@ Applicable state considerations resolved: 14 covered, 2 backstop, 1 unresolved.
 | loading | main chart | ✅ covered | With an empty buffer for the selected ticker the chart shows `Waiting for the first price…` |
 | empty | main chart | ✅ covered | With no selectable ticker the chart shows `Select a ticker to see its chart.` |
 | error | connection indicator | ✅ covered | CONNECTING shows yellow `RECONNECTING`, CLOSED shows red `OFFLINE` with automatic re-open; prices render `muted` and flash is suppressed while not OPEN |
-| error | header portfolio values | ✅ covered | A failed `GET /api/portfolio` shows `—` with an explanatory `title`; the page stays usable |
+| error | header portfolio values | ✅ covered | A failed `GET /api/portfolio` shows `—` with the visible caption `Portfolio unavailable. Reload to retry.`; the page stays usable |
+| loading | header portfolio values | ✅ covered | Until the first `GET /api/portfolio` resolves, values show `—` in `muted`; no spinner, no layout shift |
+| error | main chart | ✅ covered | While the stream is not OPEN the last drawn series stays visible at reduced opacity (0.5); no separate error panel — the connection indicator carries the message |
+| populated | main chart | ✅ covered | With buffered ticks the time scale fits all buffered points for the selected ticker and then follows the live edge |
 | empty | placeholder panels | ✅ covered | Each deferred panel renders its titled empty state so the grid does not shift in later phases |
 | nav | tablet chat toggle | ✅ covered | Below 1200px the chat panel is collapsed by default and toggled by a labeled title-bar button with `aria-expanded` |
 | partial | sparkline with fewer than 2 points or a flat series | ✅ covered | Fewer than 2 points draws a dashed baseline; equal min and max draws a flat `muted` line at mid-height |
 | populated | chart and sparklines over a long session | 🧪 backstop | Held-out UI-state test: after 50,000 buffered ticks per ticker the oldest are dropped and the chart still updates without lag |
 | overflow | header total value at large magnitudes | 🧪 backstop | Held-out visual test: `$1,000,000.00` at Display size fits the header group without wrapping or truncation |
-| partial | hidden browser tab (throttled rendering) | ⚠ unresolved | Planner assumes no special handling: buffers keep filling from `EventSource`, flash animations may be skipped while hidden |
+| partial | hidden browser tab (throttled rendering) | ➖ dismissed | No special handling needed: `EventSource` keeps filling the buffers while hidden, skipped flashes are harmless, and the chart is current on return |
 
 Outside market hours in Massive mode prices are static, so there is no flash and sparklines are flat `muted` lines; this is expected (PLAN §13.2 item 14), not a defect.
 
@@ -352,12 +359,12 @@ Outside market hours in Massive mode prices are static, so there is no flash and
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
-- [ ] Dimension 7 Inventory Provenance: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
+- [x] Dimension 7 Inventory Provenance: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-10-20 (checker FLAGs on copywriting, visuals and typography applied after review)
