@@ -179,6 +179,16 @@ def test_watchlist_lists_defaults_with_live_prices(server: ServerHandle) -> None
         assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", entry["added_at"])
 
 
+def test_portfolio_on_fresh_server_is_all_cash(server: ServerHandle) -> None:
+    assert _get_json(f"{server.base_url}/api/portfolio") == {
+        "cash_balance": 10000.0,
+        "positions_value": 0.0,
+        "total_value": 10000.0,
+        "unrealized_pnl": 0.0,
+        "positions": [],
+    }
+
+
 def test_health_returns_ok_json(server: ServerHandle) -> None:
     with urllib.request.urlopen(f"{server.base_url}/api/health", timeout=5) as resp:
         assert resp.status == 200
@@ -227,6 +237,32 @@ def test_restart_on_same_db_does_not_reseed(smoke_dir: Path, tmp_path: Path) -> 
             profiles = conn.execute("SELECT id, cash_balance FROM users_profile").fetchall()
         assert watch_count == 10
         assert profiles == [("default", 10000.0)]
+    finally:
+        stop_server(second)
+
+
+def test_each_start_records_one_portfolio_snapshot(smoke_dir: Path, tmp_path: Path) -> None:
+    db_path = tmp_path / "snapshots.db"
+    static_dir = smoke_dir / "static"
+
+    def snapshots() -> list[tuple[float, str]]:
+        with closing(sqlite3.connect(db_path)) as conn:
+            return conn.execute(
+                "SELECT total_value, recorded_at FROM portfolio_snapshots ORDER BY recorded_at, rowid"
+            ).fetchall()
+
+    first = start_server(db_path, static_dir, tmp_path / "first.log")
+    try:
+        after_first = snapshots()
+    finally:
+        stop_server(first)
+    assert len(after_first) == 1
+    assert after_first[0][0] == 10000.0
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z", after_first[0][1])
+
+    second = start_server(db_path, static_dir, tmp_path / "second.log")
+    try:
+        assert len(snapshots()) == 2
     finally:
         stop_server(second)
 
