@@ -38,7 +38,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Clicking a watchlist ticker shows it in the main chart as price over time since page load.
   5. `GET /api/health` returns `{"status": "ok"}`. The database is created and seeded at `DB_PATH` on first start and survives a container restart. With `MASSIVE_API_KEY` set, the same watchlist shows real Massive prices (day change against the previous close) instead of simulated ones.
 
-**Plans:** 7/14 plans executed (5 waves)
+**Plans:** 11/14 plans executed (5 waves)
 Plans:
 **Wave 1**
 - [x] 01-01-PLAN.md — Backend walking-skeleton tracer: one uvicorn process seeds SQLite, streams the seeded tickers over SSE, serves the static mount and /api/health (wave 1)
@@ -52,10 +52,10 @@ Plans:
 - [x] 01-07-PLAN.md — Per-app SSE router (MKT-03) and Massive parsing with the previous-close baseline and fail-soft polling (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 01-08-PLAN.md — Live header: one stream connection, connection dot, cash and live total value (wave 3)
-- [ ] 01-09-PLAN.md — JSON error envelope and /api catch-all, httpx TestClient tests, DB/config edge tests (wave 3)
-- [ ] 01-10-PLAN.md — Watchlist panel components: flashing prices, markers, Day %, sparklines and load states (wave 3)
-- [ ] 01-11-PLAN.md — .env.example, .dockerignore and the multi-stage Dockerfile verified on a test container (wave 3)
+- [x] 01-08-PLAN.md — Live header: one stream connection, connection dot, cash and live total value (wave 3)
+- [x] 01-09-PLAN.md — JSON error envelope and /api catch-all, httpx TestClient tests, DB/config edge tests (wave 3)
+- [x] 01-10-PLAN.md — Watchlist panel components: flashing prices, markers, Day %, sparklines and load states (wave 3)
+- [x] 01-11-PLAN.md — .env.example, .dockerignore and the multi-stage Dockerfile verified on a test container (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 01-12-PLAN.md — Watchlist in the page: AAPL selected on load, click and keyboard selection drive the chart title (wave 4)
@@ -105,6 +105,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Live Market Terminal | 7/14 | In Progress | - |
+| 1. Live Market Terminal | 11/14 | In Progress | - |
 | 2. Manual Trading & Portfolio | 0/TBD | Not started | - |
 | 3. AI Trading Copilot | 0/TBD | Not started | - |
