@@ -1,8 +1,15 @@
 import { act, render, screen, within } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MainChartPanel } from "@/components/MainChartPanel";
 import { __resetPriceStoreForTests, connectPriceStream } from "@/lib/priceStore";
 import type { Direction } from "@/lib/types";
+
+// The dynamic import of the canvas is not under test here; a stub records the props.
+vi.mock("@/components/ChartClient", () => ({
+  default: ({ ticker, dimmed }: { ticker: string; dimmed: boolean }) => (
+    <div data-testid="chart-client" data-ticker={ticker} data-dimmed={String(dimmed)} />
+  ),
+}));
 
 function tickPayload(ticker: string, price: number, timestamp: number, direction: Direction) {
   return {
@@ -122,5 +129,31 @@ describe("MainChartPanel strip with live ticks", () => {
     send(es, tickPayload("MSFT", 410, 100, "flat"));
     expect(within(panel()).getByText("Waiting for the first price…")).toBeInTheDocument();
     expect(within(panel()).getByTestId("strip-price").textContent).toBe("—");
+  });
+});
+
+describe("MainChartPanel chart canvas", () => {
+  it("mounts no canvas without a ticker", () => {
+    render(<MainChartPanel ticker={null} />);
+    expect(screen.queryByTestId("chart-client")).toBeNull();
+  });
+
+  it("mounts the canvas for the selected ticker, dimmed until the stream is open", () => {
+    render(<MainChartPanel ticker="AAPL" />);
+    const canvas = screen.getByTestId("chart-client");
+    expect(canvas).toHaveAttribute("data-ticker", "AAPL");
+    expect(canvas).toHaveAttribute("data-dimmed", "true");
+
+    const es = openStream();
+    expect(screen.getByTestId("chart-client")).toHaveAttribute("data-dimmed", "false");
+
+    act(() => es.emitError(2));
+    expect(screen.getByTestId("chart-client")).toHaveAttribute("data-dimmed", "true");
+  });
+
+  it("keeps the canvas mounted under the waiting overlay", () => {
+    render(<MainChartPanel ticker="AAPL" />);
+    expect(screen.getByText("Waiting for the first price…")).toBeInTheDocument();
+    expect(screen.getByTestId("chart-client")).toBeInTheDocument();
   });
 });
