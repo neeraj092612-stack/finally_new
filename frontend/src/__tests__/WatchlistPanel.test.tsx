@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -221,6 +222,136 @@ describe("WatchlistPanel selection", () => {
     expect(onSelect).toHaveBeenLastCalledWith("MSFT");
     await userEvent.keyboard("{ArrowUp}");
     expect(onSelect).toHaveBeenLastCalledWith("AAPL");
+  });
+});
+
+/** Feeds `selected` back into the panel the way AppShell does. */
+function StatefulHarness({
+  initial = "AAPL",
+  onSelect = () => {},
+}: {
+  initial?: string | null;
+  onSelect?: (ticker: string) => void;
+}) {
+  const watchlist = useWatchlist();
+  const [selected, setSelected] = useState<string | null>(initial);
+  return (
+    <WatchlistPanel
+      {...watchlist}
+      selected={selected}
+      onSelect={(ticker) => {
+        onSelect(ticker);
+        setSelected(ticker);
+      }}
+    />
+  );
+}
+
+async function renderStateful(props: Parameters<typeof StatefulHarness>[0] = {}) {
+  render(<StatefulHarness {...props} />);
+  await screen.findAllByRole("option");
+}
+
+function tabbable(): string[] {
+  return screen
+    .getAllByRole("option")
+    .filter((o) => o.getAttribute("tabindex") === "0")
+    .map((o) => o.getAttribute("data-ticker") as string);
+}
+
+describe("WatchlistPanel keyboard navigation", () => {
+  it("ArrowDown selects the next row, moves focus to it and keeps one tab stop", async () => {
+    stubFetch();
+    const onSelect = vi.fn();
+    await renderStateful({ onSelect });
+    act(() => row("AAPL").focus());
+
+    await userEvent.keyboard("{ArrowDown}");
+
+    expect(onSelect).toHaveBeenLastCalledWith("GOOGL");
+    expect(row("GOOGL")).toHaveFocus();
+    expect(row("GOOGL")).toHaveAttribute("aria-selected", "true");
+    expect(row("AAPL")).toHaveAttribute("aria-selected", "false");
+    expect(tabbable()).toEqual(["GOOGL"]);
+
+    await userEvent.keyboard("{ArrowDown}");
+    expect(row("MSFT")).toHaveFocus();
+    expect(tabbable()).toEqual(["MSFT"]);
+  });
+
+  it("ArrowUp walks back up and moves focus with it", async () => {
+    stubFetch();
+    await renderStateful({ initial: "MSFT" });
+    act(() => row("MSFT").focus());
+
+    await userEvent.keyboard("{ArrowUp}");
+
+    expect(row("GOOGL")).toHaveFocus();
+    expect(tabbable()).toEqual(["GOOGL"]);
+  });
+
+  it("clamps at the first and last rows without changing selection or focus", async () => {
+    stubFetch();
+    const onSelect = vi.fn();
+    await renderStateful({ onSelect });
+    act(() => row("AAPL").focus());
+
+    await userEvent.keyboard("{ArrowUp}");
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(row("AAPL")).toHaveFocus();
+    expect(tabbable()).toEqual(["AAPL"]);
+
+    for (let i = 0; i < TICKERS.length + 2; i += 1) await userEvent.keyboard("{ArrowDown}");
+    expect(row("NFLX")).toHaveFocus();
+    expect(tabbable()).toEqual(["NFLX"]);
+    expect(onSelect).toHaveBeenCalledTimes(TICKERS.length - 1);
+
+    await userEvent.keyboard("{ArrowDown}");
+    expect(onSelect).toHaveBeenCalledTimes(TICKERS.length - 1);
+    expect(row("NFLX")).toHaveFocus();
+  });
+
+  it("does not let the arrow keys scroll the page", async () => {
+    stubFetch();
+    await renderStateful();
+    const aapl = row("AAPL");
+    act(() => aapl.focus());
+    const down = new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true });
+    act(() => {
+      aapl.dispatchEvent(down);
+    });
+    expect(down.defaultPrevented).toBe(true);
+  });
+
+  it("selects a focused, unselected row on Enter and on Space", async () => {
+    stubFetch();
+    const onSelect = vi.fn();
+    // Selection is held by the parent and ignores the callback, so the focused row stays unselected.
+    await renderStateful({ onSelect: (t) => onSelect(t) });
+    act(() => row("MSFT").focus());
+    expect(row("MSFT")).toHaveAttribute("aria-selected", "false");
+
+    await userEvent.keyboard("{Enter}");
+    expect(onSelect).toHaveBeenLastCalledWith("MSFT");
+    expect(row("MSFT")).toHaveAttribute("aria-selected", "true");
+
+    act(() => row("TSLA").focus());
+    await userEvent.keyboard(" ");
+    expect(onSelect).toHaveBeenLastCalledWith("TSLA");
+    expect(row("TSLA")).toHaveAttribute("aria-selected", "true");
+    expect(tabbable()).toEqual(["TSLA"]);
+  });
+
+  it("starts from the first row when nothing is selected", async () => {
+    stubFetch();
+    await renderStateful({ initial: null });
+    expect(tabbable()).toEqual([]);
+    act(() => row("MSFT").focus());
+
+    await userEvent.keyboard("{ArrowDown}");
+
+    expect(row("AAPL")).toHaveFocus();
+    expect(row("AAPL")).toHaveAttribute("aria-selected", "true");
   });
 });
 
