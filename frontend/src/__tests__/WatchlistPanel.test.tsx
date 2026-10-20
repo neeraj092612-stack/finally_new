@@ -88,6 +88,8 @@ function row(ticker: string): HTMLElement {
 async function renderReady(props: Parameters<typeof Harness>[0] = {}) {
   const view = render(<Harness {...props} />);
   await screen.findAllByRole("option");
+  // Rows subscribe to the price store in a passive effect; flush it so ticks sent next re-render inside act.
+  await act(async () => {});
   return view;
 }
 
@@ -250,6 +252,8 @@ function StatefulHarness({
 async function renderStateful(props: Parameters<typeof StatefulHarness>[0] = {}) {
   render(<StatefulHarness {...props} />);
   await screen.findAllByRole("option");
+  // Rows subscribe to the price store in a passive effect; flush it so ticks sent next re-render inside act.
+  await act(async () => {});
 }
 
 function tabbable(): string[] {
