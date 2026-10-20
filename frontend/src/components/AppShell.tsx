@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { connectPriceStream, disconnectPriceStream } from "@/lib/priceStore";
 import { useWatchlist } from "@/lib/useWatchlist";
 import { Header } from "./Header";
-import { Panel } from "./Panel";
+import { MainChartPanel } from "./MainChartPanel";
 import { PlaceholderPanel } from "./PlaceholderPanel";
 import { WatchlistPanel } from "./WatchlistPanel";
 
@@ -58,24 +58,7 @@ export function AppShell() {
 
         {/* Center column: CHART over HEATMAP | P&L over POSITIONS */}
         <div className="contents desk:flex desk:min-w-[528px] desk:flex-1 desk:flex-col desk:gap-1">
-          <Panel
-            title={
-              selected === null ? (
-                "CHART"
-              ) : (
-                <>
-                  CHART · <span className="text-accent">{selected}</span>
-                </>
-              )
-            }
-            ariaLabel="Chart"
-            className="order-3 h-80 shrink-0 desk:order-none desk:h-auto desk:min-h-[280px] desk:flex-1"
-            bodyClassName="relative"
-          >
-            <div className="absolute inset-0 flex items-center justify-center text-body text-muted">
-              Select a ticker to see its chart.
-            </div>
-          </Panel>
+          <MainChartPanel ticker={selected} />
           <div className="contents desk:flex desk:h-[220px] desk:shrink-0 desk:gap-1">
             <PlaceholderPanel
               title="HEATMAP"

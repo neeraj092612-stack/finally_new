@@ -206,6 +206,6 @@ describe("AppShell watchlist selection", () => {
     expect(screen.getByRole("banner")).toBeInTheDocument();
     expectText(within(region("Positions")), "No positions yet");
     expectText(within(region("Heatmap")), "No positions to map");
-    expectText(within(region("Chart")), "Select a ticker to see its chart.");
+    expectText(within(region("Chart")), "Waiting for the first price…");
   });
 });
