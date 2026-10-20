@@ -9,7 +9,7 @@ function region(name: string): HTMLElement {
 
 // Single-line failure messages (RTL's DOM dump breaks TAP reporting of RED evidence).
 function expectText(scope: ReturnType<typeof within>, text: string): void {
-  expect(scope.queryAllByText(text).map((el) => el.textContent)).toContain(text);
+  expect(scope.queryAllByText(text).map((el: HTMLElement) => el.textContent)).toContain(text);
 }
 
 describe("AppShell", () => {
