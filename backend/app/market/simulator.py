@@ -217,8 +217,13 @@ class SimulatorDataSource(MarketDataSource):
         self._event_prob = event_probability
         self._sim: GBMSimulator | None = None
         self._task: asyncio.Task | None = None
+        # Tickers added before start(); merged into the simulation at start (MKT-04)
+        self._pending: list[str] = []
 
     async def start(self, tickers: list[str]) -> None:
+        # Order-preserving de-duplication of the start tickers and the pre-start queue
+        tickers = list(dict.fromkeys([*tickers, *self._pending]))
+        self._pending = []
         self._sim = GBMSimulator(
             tickers=tickers,
             event_probability=self._event_prob,
@@ -242,22 +247,29 @@ class SimulatorDataSource(MarketDataSource):
         logger.info("Simulator stopped")
 
     async def add_ticker(self, ticker: str) -> None:
-        if self._sim:
-            self._sim.add_ticker(ticker)
-            # Seed cache immediately so the ticker has a price right away
-            price = self._sim.get_price(ticker)
-            if price is not None:
-                self._cache.update(ticker=ticker, price=price)
-            logger.info("Simulator: added ticker %s", ticker)
+        if not self._sim:
+            if ticker not in self._pending:
+                self._pending.append(ticker)
+                logger.info("Simulator: queued ticker %s until start", ticker)
+            return
+        if ticker in self._sim.get_tickers():
+            return  # Already simulated: no spurious flat tick
+        self._sim.add_ticker(ticker)
+        # Seed cache immediately so the ticker has a price right away
+        price = self._sim.get_price(ticker)
+        if price is not None:
+            self._cache.update(ticker=ticker, price=price)
+        logger.info("Simulator: added ticker %s", ticker)
 
     async def remove_ticker(self, ticker: str) -> None:
+        self._pending = [t for t in self._pending if t != ticker]
         if self._sim:
             self._sim.remove_ticker(ticker)
         self._cache.remove(ticker)
         logger.info("Simulator: removed ticker %s", ticker)
 
     def get_tickers(self) -> list[str]:
-        return self._sim.get_tickers() if self._sim else []
+        return self._sim.get_tickers() if self._sim else list(self._pending)
 
     async def _run_loop(self) -> None:
         """Core loop: step the simulation, write to cache, sleep."""
