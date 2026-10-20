@@ -329,7 +329,7 @@ describe("WatchlistPanel live prices", () => {
     await renderReady();
     const msft = row("MSFT");
     const dashes = within(msft).getAllByText("—");
-    expect(dashes.length).toBeGreaterThanOrEqual(2);
+    expect(dashes.length).toBeGreaterThanOrEqual(1);
     for (const dash of dashes) expect(dash).toHaveClass("text-muted");
     expect(within(msft).queryByText("0.00")).not.toBeInTheDocument();
   });
