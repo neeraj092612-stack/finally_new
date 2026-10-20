@@ -2,7 +2,7 @@
 
 > Full coverage by default. Opt-outs are explicit, reasoned decisions.
 
-Scope: Phase 1 fixes the existing Massive integration (MKT-01 snapshot parsing, MKT-05 previous-close baseline, fail-soft polling) in `backend/app/market/massive_client.py`, plan 01-04 Task 3. The capability list below is the stock-market surface of the installed `massive.RESTClient` (method names read from `massive/rest/*.py`). The LLM integration (LiteLLM -> OpenRouter) belongs to Phase 3 and is not part of this phase.
+Scope: Phase 1 fixes the existing Massive integration (MKT-01 snapshot parsing, MKT-05 previous-close baseline, fail-soft polling) in `backend/app/market/massive_client.py`, plan 01-07 Task 2. The capability list below is the stock-market surface of the installed `massive.RESTClient` (method names read from `massive/rest/*.py`). The LLM integration (LiteLLM -> OpenRouter) belongs to Phase 3 and is not part of this phase.
 
 | capability | decision | reason |
 |---|---|---|

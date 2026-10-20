@@ -7,7 +7,7 @@
 
 One start script builds and runs a single container whose FastAPI process seeds SQLite, starts the market simulator, and serves a dark terminal page at http://localhost:8000 that shows the 10 default tickers streaming live over SSE next to a $10,000 portfolio.
 
-The tracer for this skeleton is plan 01-01 Task 1: a real uvicorn process (`app.main:create_app --factory`) proving SQLite seed -> lifespan -> simulator -> PriceCache -> `/api/watchlist` and `/api/stream/prices`, plus `/api/health` and the static mount. The frontend leg starts in parallel (01-02, after the dependency checkpoint) and the deployment leg closes the loop through the container and scripts (01-06, final rebuild in 01-07).
+The tracer for this skeleton is plan 01-01 Task 1: a real uvicorn process (`app.main:create_app --factory`) proving SQLite seed -> lifespan -> simulator -> PriceCache -> `/api/stream/prices`, plus the static mount; plan 01-01 Task 2 adds `/api/health`. The market core fixes (01-03) and the frontend leg (01-02, after the dependency checkpoint) start in parallel; the REST reads (01-06), stream-router and Massive fixes (01-07) and the error envelope (01-09) expand the server; the page fills in through 01-04, 01-05, 01-08, 01-10, 01-12 and 01-14; the deployment leg closes the loop through the image (01-11) and scripts (01-13), with the final rebuild in 01-14.
 
 ## Architectural Decisions
 
@@ -30,11 +30,11 @@ The tracer for this skeleton is plan 01-01 Task 1: a real uvicorn process (`app.
 
 ## Stack Touched in Phase 1
 
-- [ ] Project scaffold (framework, build, lint, test runner) — 01-01 (backend factory, ruff, pytest), 01-02 (Next.js, Tailwind, Vitest)
-- [ ] Routing — at least one real route — `/api/health`, `/api/watchlist`, `/api/portfolio`, `/api/stream/prices`, static `/` (01-01, 01-04)
-- [ ] Database — at least one real read AND one real write — seed and startup snapshot writes, watchlist and portfolio reads (01-01, 01-04)
-- [ ] UI — at least one interactive element wired to the API — watchlist row selection driving the chart over live SSE data (01-05, 01-07)
-- [ ] Deployment — running on dev environment OR documented local full-stack run command — `scripts/start_mac.sh` / `scripts/start_windows.ps1` (01-06, final rebuild 01-07)
+- [ ] Project scaffold (framework, build, lint, test runner) — 01-01 (backend factory, ruff, pytest), 01-02 (Next.js toolchain, Vitest harness), 01-04 (Tailwind theme, first static export)
+- [ ] Routing — at least one real route — `/api/health`, `/api/stream/prices`, static `/` (01-01), `/api/watchlist`, `/api/portfolio` (01-06), JSON 404 catch-all (01-09)
+- [ ] Database — at least one real read AND one real write — seed write and watchlist read in the lifespan (01-01), startup snapshot write and watchlist/portfolio reads (01-06)
+- [ ] UI — at least one interactive element wired to the API — watchlist row selection driving the chart over live SSE data (01-10, 01-12, 01-14)
+- [ ] Deployment — running on dev environment OR documented local full-stack run command — image (01-11), `scripts/start_mac.sh` / `scripts/start_windows.ps1` (01-13), final rebuild (01-14)
 
 ## Out of Scope (Deferred to Later Slices)
 

@@ -36,15 +36,22 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. The watchlist shows AAPL, GOOGL, MSFT, AMZN, TSLA, NVDA, META, JPM, V and NFLX with prices that update about every 500ms, flash green or red on each move and fade within ~500ms, show a day change %, and draw sparklines that fill in from page load.
   4. Clicking a watchlist ticker shows it in the main chart as price over time since page load.
   5. `GET /api/health` returns `{"status": "ok"}`. The database is created and seeded at `DB_PATH` on first start and survives a container restart. With `MASSIVE_API_KEY` set, the same watchlist shows real Massive prices (day change against the previous close) instead of simulated ones.
-**Plans:** 7 plans
+**Plans:** 14 plans (5 waves)
 Plans:
-- [ ] 01-01-PLAN.md — Backend walking-skeleton tracer (seeded watchlist, health, SSE and static mount from one uvicorn process) plus D-06 raw-price direction and the MKT-04 pre-start queue
-- [ ] 01-02-PLAN.md — Dependency checkpoint, Next.js static-export scaffold and the full terminal grid with empty states
-- [ ] 01-03-PLAN.md — Shared SSE price store, connection indicator and live header (cash, total value)
-- [ ] 01-04-PLAN.md — Portfolio endpoint and startup snapshot, JSON error envelope, DB/config edge tests, Massive parsing fix
-- [ ] 01-05-PLAN.md — Watchlist panel: flashing prices, markers, Day %, sparklines, selection, keyboard navigation and states
-- [ ] 01-06-PLAN.md — Dockerfile, .env.example, start/stop scripts and the PLAN.md write-back
-- [ ] 01-07-PLAN.md — Main chart (Lightweight Charts area series) and the final rebuild through the start script
+- [ ] 01-01-PLAN.md — Backend walking-skeleton tracer: one uvicorn process seeds SQLite, streams the seeded tickers over SSE, serves the static mount and /api/health (wave 1)
+- [ ] 01-02-PLAN.md — Dependency checkpoint, exact-pinned frontend toolchain and the shared Vitest harness (wave 1)
+- [ ] 01-03-PLAN.md — Market core fixes: D-06 raw-price direction, D-18 simulator day-change baseline, MKT-04 pre-start queue (wave 1)
+- [ ] 01-04-PLAN.md — Terminal grid in the static export: theme tokens, fonts, panel chrome, empty states, tablet chat collapse (wave 2)
+- [ ] 01-05-PLAN.md — Shared SSE price store, connection indicator, formatters and API fetchers (wave 2)
+- [ ] 01-06-PLAN.md — GET /api/watchlist and GET /api/portfolio with the startup snapshot (wave 2)
+- [ ] 01-07-PLAN.md — Per-app SSE router (MKT-03) and Massive parsing with the previous-close baseline and fail-soft polling (wave 2)
+- [ ] 01-08-PLAN.md — Live header: one stream connection, connection dot, cash and live total value (wave 3)
+- [ ] 01-09-PLAN.md — JSON error envelope and /api catch-all, httpx TestClient tests, DB/config edge tests (wave 3)
+- [ ] 01-10-PLAN.md — Watchlist panel components: flashing prices, markers, Day %, sparklines and load states (wave 3)
+- [ ] 01-11-PLAN.md — .env.example, .dockerignore and the multi-stage Dockerfile verified on a test container (wave 3)
+- [ ] 01-12-PLAN.md — Watchlist in the page: AAPL selected on load, click and keyboard selection drive the chart title (wave 4)
+- [ ] 01-13-PLAN.md — Start/stop scripts (bash and PowerShell) and the PLAN.md write-back (wave 4)
+- [ ] 01-14-PLAN.md — Main chart (Lightweight Charts area series) and the final rebuild through the start script (wave 5)
 **UI hint**: yes
 
 ### Phase 2: Manual Trading & Portfolio
