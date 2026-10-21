@@ -19,7 +19,7 @@ FinAlly goes from a market-data-only backend to a complete, demo-ready AI tradin
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Live Market Terminal** - One start script launches the container; the browser shows the default watchlist streaming and flashing live prices with sparklines, a main chart and a $10,000 portfolio header
+- [x] **Phase 1: Live Market Terminal** - One start script launches the container; the browser shows the default watchlist streaming and flashing live prices with sparklines, a main chart and a $10,000 portfolio header (completed 2026-10-20)
 - [ ] **Phase 2: Manual Trading & Portfolio** - Watchlist add/remove, buy/sell from the trade bar, and a positions table, heatmap and P&L chart that react to every trade
 - [ ] **Phase 3: AI Trading Copilot** - Chat with FinAlly to analyze the portfolio and execute trades and watchlist changes in natural language, with the full demo covered by passing unit and E2E suites
 
@@ -38,7 +38,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. Clicking a watchlist ticker shows it in the main chart as price over time since page load.
   5. `GET /api/health` returns `{"status": "ok"}`. The database is created and seeded at `DB_PATH` on first start and survives a container restart. With `MASSIVE_API_KEY` set, the same watchlist shows real Massive prices (day change against the previous close) instead of simulated ones.
 
-**Plans:** 14/14 plans executed (5 waves)
+**Plans:** 14/14 plans complete (5 waves)
 Plans:
 **Wave 1**
 - [x] 01-01-PLAN.md — Backend walking-skeleton tracer: one uvicorn process seeds SQLite, streams the seeded tickers over SSE, serves the static mount and /api/health (wave 1)
@@ -105,6 +105,6 @@ Phases execute in numeric order: 1 → 2 → 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Live Market Terminal | 14/14 | In Progress | - |
+| 1. Live Market Terminal | 14/14 | Complete    | 2026-10-20 |
 | 2. Manual Trading & Portfolio | 0/TBD | Not started | - |
 | 3. AI Trading Copilot | 0/TBD | Not started | - |

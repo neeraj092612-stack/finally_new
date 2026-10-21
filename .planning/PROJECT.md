@@ -19,21 +19,21 @@ The live demo must work and impress from one Docker command: prices stream and f
 - ✓ Thread-safe in-memory `PriceCache` with version counter for change detection — existing
 - ✓ SSE endpoint `GET /api/stream/prices` streaming all tickers every ~500ms with `retry: 1000` — existing (router factory only; no app mounts it yet)
 - ✓ Unit tests for cache, models, simulator, factory, and Massive client (mocked) — existing (`backend/tests/market/`)
+- ✓ Fix known market data defects: Massive `last_trade.timestamp` bug (field is `sip_timestamp`, ns), module-level SSE router duplicated by the factory, simulator dropping tickers added before `start()`, removed ticker reappearing after an in-flight Massive poll — Phase 1
+- ✓ FastAPI app entry point with lifespan-managed DB init, market data startup, startup portfolio snapshot, and static frontend serving (API routers registered before the static mount) — Phase 1
+- ✓ SQLite persistence (`DB_PATH` env, default `db/finally.db`; `/app/db/finally.db` in Docker) with the six-table schema and default seed (cash $10,000, 10-ticker watchlist) — Phase 1
+- ✓ Uniform error body `{"error": {"code", "message"}}` for every non-2xx response, with the error-code table from PLAN.md §8 — Phase 1
+- ✓ Multi-stage Dockerfile, `.env.example`, start/stop scripts for macOS/Linux and Windows — Phase 1
 
 ### Active
 
 <!-- Everything else in planning/PLAN.md. Hypotheses until shipped. -->
 
-- [ ] Fix known market data defects: Massive `last_trade.timestamp` bug (field is `sip_timestamp`, ns), module-level SSE router duplicated by the factory, simulator dropping tickers added before `start()`, removed ticker reappearing after an in-flight Massive poll
-- [ ] FastAPI app entry point with lifespan-managed DB init, market data startup, startup portfolio snapshot, and static frontend serving (API routers registered before the static mount)
-- [ ] SQLite persistence (`DB_PATH` env, default `db/finally.db`; `/app/db/finally.db` in Docker) with the six-table schema and default seed (cash $10,000, 10-ticker watchlist)
-- [ ] Portfolio API: `GET /api/portfolio`, `POST /api/portfolio/trade`, `GET /api/portfolio/history` exactly per PLAN.md §8 contracts and trade rules, atomic per trade and serialized across manual + LLM trades
-- [ ] Watchlist API: `GET/POST /api/watchlist`, `DELETE /api/watchlist/{ticker}` (409 `position_open`), registering/unregistering tickers with the market data source
-- [ ] Uniform error body `{"error": {"code", "message"}}` for every non-2xx response, with the error-code table from PLAN.md §8
+- [ ] Portfolio API (`GET /api/portfolio` shipped in Phase 1): `GET /api/portfolio`, `POST /api/portfolio/trade`, `GET /api/portfolio/history` exactly per PLAN.md §8 contracts and trade rules, atomic per trade and serialized across manual + LLM trades
+- [ ] Watchlist API (`GET /api/watchlist` with live price and Day % shipped in Phase 1): `GET/POST /api/watchlist`, `DELETE /api/watchlist/{ticker}` (409 `position_open`), registering/unregistering tickers with the market data source
 - [ ] Chat: `POST /api/chat` (LiteLLM → OpenRouter `openrouter/openai/gpt-oss-120b`, Cerebras provider, structured outputs), fixed action order (watchlist adds → trades → removals), per-action results, `llm_error` handling; `GET /api/chat` for history
 - [ ] Deterministic `LLM_MOCK=true` mode for development and E2E tests
-- [ ] Next.js static-export frontend: watchlist with flashing prices and SVG sparklines, main chart (Lightweight Charts), portfolio treemap heatmap, P&L chart with live final point, positions table, trade bar, collapsible AI chat panel with inline action results, header with live total value / cash / connection dot
-- [ ] Multi-stage Dockerfile, `.env.example`, start/stop scripts for macOS/Linux and Windows
+- [ ] Next.js static-export frontend (Phase 1 shipped the terminal grid, header with live total / cash / connection dot, watchlist with flashing prices and sparklines, and the main chart): watchlist with flashing prices and SVG sparklines, main chart (Lightweight Charts), portfolio treemap heatmap, P&L chart with live final point, positions table, trade bar, collapsible AI chat panel with inline action results, header with live total value / cash / connection dot
 - [ ] Backend pytest suite, frontend unit tests, and Playwright E2E suite run via `test/docker-compose.test.yml` with `LLM_MOCK=true`
 
 ### Out of Scope
@@ -73,8 +73,8 @@ The live demo must work and impress from one Docker command: prices stream and f
 | Implement PLAN.md exactly as written | User confirmed the spec is the product | — Pending |
 | Live demo is the priority when tradeoffs arise | User's stated core value | — Pending |
 | Resolve PLAN.md §13.2 open questions with its own recommendations and write them back to PLAN.md | User chose recommended defaults | — Pending |
-| DB init, market data start, and startup snapshot run in FastAPI lifespan | Startup snapshot and data source need the DB at startup (§13.2 item 8) | — Pending |
-| `day_change_percent` baseline = first price seen since server start (simulator); previous close in Massive mode | Simplest well-defined baseline (§13.2 item 12) | — Pending |
+| DB init, market data start, and startup snapshot run in FastAPI lifespan | Startup snapshot and data source need the DB at startup (§13.2 item 8) | ✓ Good (Phase 1) |
+| `day_change_percent` baseline = first price seen since server start (simulator); previous close in Massive mode | Simplest well-defined baseline (§13.2 item 12) | ✓ Good (Phase 1) |
 | Simulator accepts any well-formed ticker with a random seed price; Massive does not pre-validate symbols | Keeps add-ticker simple; documented limitation (§13.2 item 11) | — Pending |
 | Full sell deletes the position row; buys use weighted-average cost; partial sells keep `avg_cost` | Standard position lifecycle (§13.2 item 17) | — Pending |
 | Each trade is one SQLite transaction, serialized by a process-wide async lock shared by manual and LLM trades | Atomicity and no interleaving (§13.2 item 19) | — Pending |
@@ -82,11 +82,11 @@ The live demo must work and impress from one Docker command: prices stream and f
 | `LLM_MOCK` uses deterministic keyword matching (e.g. "buy N TICKER" adds to watchlist and buys) with a fixed fallback reply | E2E tests and backend agree on behavior (§13.2 item 26) | — Pending |
 | Structured-output schema makes `trades` and `watchlist_changes` required arrays (may be empty) | Strict structured outputs need all fields (§13.2 item 27) | — Pending |
 | Frontend refetches `/api/portfolio` (and `/api/watchlist` after chat actions) after every action; live total value is recomputed client-side from SSE prices | Clear refresh strategy (§13.2 item 29) | — Pending |
-| Connection dot maps `EventSource.readyState`: OPEN = green, CONNECTING = yellow, CLOSED = red | §13.2 item 30 | — Pending |
-| `DB_PATH` env var with default `db/finally.db` | Local vs. Docker paths differ (§13.2 item 32) | — Pending |
-| Missing `.env`: start scripts warn and run without `--env-file` (simulator works; chat returns `llm_error`); `.env.example` is committed | §13.2 item 6 | — Pending |
-| No backend price-history buffer; chart history is browser-only | User chose spec as written (§13.2 item 13) | — Pending |
-| Fix known market data defects in scope | Massive mode currently yields no prices | — Pending |
+| Connection dot maps `EventSource.readyState`: OPEN = green, CONNECTING = yellow, CLOSED = red | §13.2 item 30 | ✓ Good (Phase 1) |
+| `DB_PATH` env var with default `db/finally.db` | Local vs. Docker paths differ (§13.2 item 32) | ✓ Good (Phase 1) |
+| Missing `.env`: start scripts warn and run without `--env-file` (simulator works; chat returns `llm_error`); `.env.example` is committed | §13.2 item 6 | ✓ Good (Phase 1) |
+| No backend price-history buffer; chart history is browser-only | User chose spec as written (§13.2 item 13) | ✓ Good (Phase 1) |
+| Fix known market data defects in scope | Massive mode currently yields no prices | ✓ Good (Phase 1) |
 
 ## Evolution
 
@@ -106,4 +106,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-20 after initialization*
+*Last updated: 2026-10-20 after Phase 1*

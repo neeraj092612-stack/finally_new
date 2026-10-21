@@ -9,25 +9,25 @@ Source of truth for shapes, codes and rules: `planning/PLAN.md` (§8 API contrac
 
 ### Market Data (fixes to existing module)
 
-- [ ] **MKT-01**: In Massive mode, watched tickers receive prices (snapshot parsing uses the real `LastTrade` fields, e.g. `sip_timestamp` in ns, with a fallback)
+- [x] **MKT-01**: In Massive mode, watched tickers receive prices (snapshot parsing uses the real `LastTrade` fields, e.g. `sip_timestamp` in ns, with a fallback)
 - [ ] **MKT-02**: A ticker removed from the watchlist never reappears in the price cache after an in-flight Massive poll completes
-- [ ] **MKT-03**: Creating the SSE router more than once does not register duplicate routes
-- [ ] **MKT-04**: Tickers added to the simulator before `start()` are not silently dropped
-- [ ] **MKT-05**: Each watched ticker exposes a `day_change_percent` baseline (first price seen since server start in simulator mode; previous close in Massive mode)
+- [x] **MKT-03**: Creating the SSE router more than once does not register duplicate routes
+- [x] **MKT-04**: Tickers added to the simulator before `start()` are not silently dropped
+- [x] **MKT-05**: Each watched ticker exposes a `day_change_percent` baseline (first price seen since server start in simulator mode; previous close in Massive mode)
 
 ### Platform & Persistence
 
-- [ ] **PLAT-01**: Backend starts as a FastAPI app whose lifespan initializes the SQLite DB (creating schema and seeding if missing), starts the market data source with the watchlist tickers, and records a startup portfolio snapshot
-- [ ] **PLAT-02**: Database location is set by `DB_PATH` (default `db/finally.db`; `/app/db/finally.db` in Docker) and data persists across restarts
-- [ ] **PLAT-03**: A fresh database is seeded with one profile (cash $10,000) and the 10 default watchlist tickers
+- [x] **PLAT-01**: Backend starts as a FastAPI app whose lifespan initializes the SQLite DB (creating schema and seeding if missing), starts the market data source with the watchlist tickers, and records a startup portfolio snapshot
+- [x] **PLAT-02**: Database location is set by `DB_PATH` (default `db/finally.db`; `/app/db/finally.db` in Docker) and data persists across restarts
+- [x] **PLAT-03**: A fresh database is seeded with one profile (cash $10,000) and the 10 default watchlist tickers
 - [ ] **PLAT-04**: Every non-2xx response, including request validation failures, returns `{"error": {"code", "message"}}` with the code/status table from PLAN.md §8
-- [ ] **PLAT-05**: `GET /api/health` returns `{"status": "ok"}`
-- [ ] **PLAT-06**: `GET /api/stream/prices` is mounted and streams live prices for all watched tickers
-- [ ] **PLAT-07**: FastAPI serves the static frontend export at `/` with API routes registered before the static mount
+- [x] **PLAT-05**: `GET /api/health` returns `{"status": "ok"}`
+- [x] **PLAT-06**: `GET /api/stream/prices` is mounted and streams live prices for all watched tickers
+- [x] **PLAT-07**: FastAPI serves the static frontend export at `/` with API routes registered before the static mount
 
 ### Portfolio & Trading
 
-- [ ] **PORT-01**: User can view portfolio (`GET /api/portfolio`): cash, positions value, total value, unrealized P&L, positions ordered by ticker with market value and P&L %
+- [x] **PORT-01**: User can view portfolio (`GET /api/portfolio`): cash, positions value, total value, unrealized P&L, positions ordered by ticker with market value and P&L %
 - [ ] **PORT-02**: User can buy whole shares at the current cached price; cash decreases and the position is created or its `avg_cost` updated as a weighted average
 - [ ] **PORT-03**: User can sell whole shares; cash increases, a partial sell keeps `avg_cost`, a full sell removes the position
 - [ ] **PORT-04**: Trades are rejected in order with `ticker_not_watched`, `price_unavailable`, `insufficient_cash` / `insufficient_shares`, plus `invalid_ticker` / `invalid_request` for malformed input
@@ -37,7 +37,7 @@ Source of truth for shapes, codes and rules: `planning/PLAN.md` (§8 API contrac
 
 ### Watchlist
 
-- [ ] **WATCH-01**: User can view the watchlist with latest price, previous price, direction and day change %, ordered by `added_at` (nulls while unpriced)
+- [x] **WATCH-01**: User can view the watchlist with latest price, previous price, direction and day change %, ordered by `added_at` (nulls while unpriced)
 - [ ] **WATCH-02**: User can add a ticker (normalized, format-validated); returns 201 when added, 200 when already present; ticker starts receiving prices
 - [ ] **WATCH-03**: User can remove a ticker (204); rejected with `not_watched` if absent and `position_open` (409) while a position is held; ticker stops streaming
 
@@ -53,10 +53,10 @@ Source of truth for shapes, codes and rules: `planning/PLAN.md` (§8 API contrac
 
 ### Frontend
 
-- [ ] **UI-01**: User sees a dark, dense terminal-style single page (PLAN.md color scheme) with a header showing live total portfolio value, cash balance and a connection status dot (OPEN green / CONNECTING yellow / CLOSED red)
-- [ ] **UI-02**: User sees the watchlist with ticker, live price flashing green/red on change (fading ~500ms), day change % and an SVG sparkline accumulated since page load
+- [x] **UI-01**: User sees a dark, dense terminal-style single page (PLAN.md color scheme) with a header showing live total portfolio value, cash balance and a connection status dot (OPEN green / CONNECTING yellow / CLOSED red)
+- [x] **UI-02**: User sees the watchlist with ticker, live price flashing green/red on change (fading ~500ms), day change % and an SVG sparkline accumulated since page load
 - [ ] **UI-03**: User can add and remove watchlist tickers from the UI, with API errors shown inline
-- [ ] **UI-04**: User can click a ticker to show it in the main chart (Lightweight Charts, price over time since page load)
+- [x] **UI-04**: User can click a ticker to show it in the main chart (Lightweight Charts, price over time since page load)
 - [ ] **UI-05**: User can buy and sell from a trade bar (ticker, whole-share quantity, buy/sell buttons) with errors shown inline and no confirmation dialog
 - [ ] **UI-06**: User sees a positions table (ticker, quantity, avg cost, current price, unrealized P&L, % change) updating live from streamed prices
 - [ ] **UI-07**: User sees a portfolio heatmap (custom treemap) sized by position weight and colored by P&L
@@ -66,9 +66,9 @@ Source of truth for shapes, codes and rules: `planning/PLAN.md` (§8 API contrac
 
 ### Deployment
 
-- [ ] **DEP-01**: A multi-stage Dockerfile (Node 20 build → Python 3.12 + uv) produces one image serving everything on port 8000
-- [ ] **DEP-02**: `.env.example` is committed with `OPENROUTER_API_KEY`, `MASSIVE_API_KEY`, `LLM_MOCK`
-- [ ] **DEP-03**: User can start the app with `scripts/start_mac.sh` or `scripts/start_windows.ps1` (build if needed or on `--build`, named volume `finally-data`, port 8000, prints URL; warns and runs without `--env-file` if `.env` is missing) and stop it with the matching stop script without losing data; all scripts are idempotent
+- [x] **DEP-01**: A multi-stage Dockerfile (Node 20 build → Python 3.12 + uv) produces one image serving everything on port 8000
+- [x] **DEP-02**: `.env.example` is committed with `OPENROUTER_API_KEY`, `MASSIVE_API_KEY`, `LLM_MOCK`
+- [x] **DEP-03**: User can start the app with `scripts/start_mac.sh` or `scripts/start_windows.ps1` (build if needed or on `--build`, named volume `finally-data`, port 8000, prints URL; warns and runs without `--env-file` if `.env` is missing) and stop it with the matching stop script without losing data; all scripts are idempotent
 
 ### Testing
 
@@ -104,26 +104,26 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| MKT-01 | Phase 1 | Pending |
+| MKT-01 | Phase 1 | Complete |
 | MKT-02 | Phase 2 | Pending |
-| MKT-03 | Phase 1 | Pending |
-| MKT-04 | Phase 1 | Pending |
-| MKT-05 | Phase 1 | Pending |
-| PLAT-01 | Phase 1 | Pending |
-| PLAT-02 | Phase 1 | Pending |
-| PLAT-03 | Phase 1 | Pending |
+| MKT-03 | Phase 1 | Complete |
+| MKT-04 | Phase 1 | Complete |
+| MKT-05 | Phase 1 | Complete |
+| PLAT-01 | Phase 1 | Complete |
+| PLAT-02 | Phase 1 | Complete |
+| PLAT-03 | Phase 1 | Complete |
 | PLAT-04 | Phase 2 | Pending |
-| PLAT-05 | Phase 1 | Pending |
-| PLAT-06 | Phase 1 | Pending |
-| PLAT-07 | Phase 1 | Pending |
-| PORT-01 | Phase 1 | Pending |
+| PLAT-05 | Phase 1 | Complete |
+| PLAT-06 | Phase 1 | Complete |
+| PLAT-07 | Phase 1 | Complete |
+| PORT-01 | Phase 1 | Complete |
 | PORT-02 | Phase 2 | Pending |
 | PORT-03 | Phase 2 | Pending |
 | PORT-04 | Phase 2 | Pending |
 | PORT-05 | Phase 2 | Pending |
 | PORT-06 | Phase 2 | Pending |
 | PORT-07 | Phase 2 | Pending |
-| WATCH-01 | Phase 1 | Pending |
+| WATCH-01 | Phase 1 | Complete |
 | WATCH-02 | Phase 2 | Pending |
 | WATCH-03 | Phase 2 | Pending |
 | CHAT-01 | Phase 3 | Pending |
@@ -133,19 +133,19 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CHAT-05 | Phase 3 | Pending |
 | CHAT-06 | Phase 3 | Pending |
 | CHAT-07 | Phase 3 | Pending |
-| UI-01 | Phase 1 | Pending |
-| UI-02 | Phase 1 | Pending |
+| UI-01 | Phase 1 | Complete |
+| UI-02 | Phase 1 | Complete |
 | UI-03 | Phase 2 | Pending |
-| UI-04 | Phase 1 | Pending |
+| UI-04 | Phase 1 | Complete |
 | UI-05 | Phase 2 | Pending |
 | UI-06 | Phase 2 | Pending |
 | UI-07 | Phase 2 | Pending |
 | UI-08 | Phase 2 | Pending |
 | UI-09 | Phase 3 | Pending |
 | UI-10 | Phase 3 | Pending |
-| DEP-01 | Phase 1 | Pending |
-| DEP-02 | Phase 1 | Pending |
-| DEP-03 | Phase 1 | Pending |
+| DEP-01 | Phase 1 | Complete |
+| DEP-02 | Phase 1 | Complete |
+| DEP-03 | Phase 1 | Complete |
 | TEST-01 | Phase 3 | Pending |
 | TEST-02 | Phase 3 | Pending |
 | TEST-03 | Phase 3 | Pending |
