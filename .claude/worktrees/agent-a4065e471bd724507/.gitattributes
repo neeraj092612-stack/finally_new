@@ -1,0 +1,4 @@
+# Keep LF endings for files that run inside Linux containers or under POSIX shells,
+# even when checked out on Windows (CRLF would break shebangs and the Dockerfile).
+*.sh text eol=lf
+Dockerfile text eol=lf

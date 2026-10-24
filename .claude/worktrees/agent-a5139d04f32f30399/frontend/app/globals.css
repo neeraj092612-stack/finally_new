@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #0d1117;
+  --color-surface: #161b22;
+  --color-surface-2: #1c2128;
+  --color-border: #30363d;
+  --color-text: #e6edf3;
+  --color-muted: #8b949e;
+  --color-accent: #ecad0a;
+  --color-primary: #209dd7;
+  --color-up: #3fb950;
+  --color-down: #f85149;
+  --color-warn: #d29922;
+  --color-submit: #753991;
+
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+
+  /* Exactly four type sizes (UI-SPEC Typography). */
+  --text-label: 10px;
+  --text-label--line-height: 1.5;
+  --text-body: 12px;
+  --text-body--line-height: 1.5;
+  --text-heading: 14px;
+  --text-heading--line-height: 1.2;
+  --text-display: 20px;
+  --text-display--line-height: 1.2;
+
+  /* Desktop layout starts at 1200px (D-01 / D-04). */
+  --breakpoint-desk: 75rem;
+}
+
+/* Price flash (D-05): applied to the price cell only, fades over 500ms. */
+@keyframes flash-up {
+  from {
+    background-color: rgba(63, 185, 80, 0.3);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@keyframes flash-down {
+  from {
+    background-color: rgba(248, 81, 73, 0.3);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+
+@keyframes dot-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.4;
+  }
+}
+
+@keyframes skeleton-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.5;
+  }
+}
+
+.flash-up {
+  animation: flash-up 500ms ease-out;
+}
+
+.flash-down {
+  animation: flash-down 500ms ease-out;
+}
+
+.dot-pulse {
+  animation: dot-pulse 1s infinite alternate;
+}
+
+.skeleton-pulse {
+  animation: skeleton-pulse 1.5s infinite alternate;
+}
+
+/* Reduced motion: flash is a static 150ms tint, pulses are disabled. */
+@media (prefers-reduced-motion: reduce) {
+  .flash-up {
+    animation: flash-up 150ms steps(1);
+  }
+
+  .flash-down {
+    animation: flash-down 150ms steps(1);
+  }
+
+  .dot-pulse,
+  .skeleton-pulse {
+    animation: none;
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": null,
+  "phases": [
+    {
+      "number": "1",
+      "name": "Live Market Terminal",
+      "status": "complete"
+    },
+    {
+      "number": "2",
+      "name": "Manual Trading & Portfolio",
+      "status": "pending"
+    },
+    {
+      "number": "3",
+      "name": "AI Trading Copilot",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd-progress --next",
+    "label": "Advance to the next step (plan phase 2)",
+    "reason": "Phase 2 of 3 — needs a plan"
+  },
+  "updated_at": "2026-10-21T01:10:31.205Z"
+}
